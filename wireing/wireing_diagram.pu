@@ -1,66 +1,225 @@
-@startuml Power wireing Diagram
+@startuml PowerWiringDiagram_v3
 
-(Lipo5S) --> (Fuse30A)
-(Fuse30A) --> (VoltageMeter5S)
-(VoltageMeter5S) --> (PowerManagementBoard)
-(PowerManagementBoard) --> (PowerDistributionBoard)
-(PowerDistributionBoard) --> (VESC)
-(VESC) --> (BLDC-NEO)
-(PowerDistributionBoard) --> (XT60toXT30 x3)
-(XT60toXT30 x3) --> (C620 x3)
-(C620 x3) --> (Wheels M3508)
-(PowerDistributionBoard) --> (BucketArmHoldC610)
-(BucketArmHoldC610) --> (BucketArmHold M2006)
-(PowerDistributionBoard) --> (LoadingShiftC610)
-(LoadingShiftC610) --> (LoadingShift M2006)
-(PowerDistributionBoard) --> (LoadingRotateC610)
-(LoadingRotateC610) --> (LoadingRotate M2006)
-(PowerDistributionBoard) --> (HTMDv2.2c)
-(HTMDv2.2c) --> (BucketArmHight MS-385PH)
-(PowerDistributionBoard) --> (DeskArmC610)
-(DeskArmC610) --> (DeskArmHookPos M2006)
-(PowerDistributionBoard) --> (KNI-Servo)
-(KNI-Servo) --> (DeskArmHold MG996R)
-(PowerDistributionBoard) --> (KNI-Servo-LED)
-(KNI-Servo-LED) --> (LED x3)
-(PowerDistributionBoard) --> (TrinityDeviceController24V)
-(TrinityDeviceController24V) --> (AirLauncher x3) : 電磁弁想定
-(TrinityDeviceController24V) --> (ToggleSW)
-(ToggleSW) --> (AirRegulatorControlBoard)
-(AirRegulatorControlBoard) ..> (AirRegulator) : Signal
-(AirRegulator) --> (AirLauncher x3) : 空気圧調整
-(PowerDistributionBoard) --> (C620 ESCHub)
-(PowerDistributionBoard) --> (C610 ESCHub)
-(PowerDistributionBoard) --> (VESC ESCHub)
+title 足回り／機構 電源配線図 (Power Wiring Diagram) v3
 
-(EMS SW) ..> (PowerManagementBoard) : Signal
-(Remote EMS SW) ..> (RemoteEMSBoard) : Signal
-(RemoteEMSBoard) ..> (PowerManagementBoard)
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam component {
+  BackgroundColor #F5F7FA
+  BorderColor #444444
+  FontSize 13
+}
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #888888
+  FontSize 14
+  FontStyle bold
+}
+skinparam ArrowFontSize 11
+skinparam shadowing false
 
-(Lipo4S) --> (Fuse10A-4S)
-(Lipo3S) --> (Fuse10A-3S)
-(Fuse10A-4S) --> (LogicPowerManagementBoard)
-(Fuse10A-3S) --> (LogicPowerManagementBoard)
-(LogicPowerManagementBoard) --> (Jetson)
-(LogicPowerManagementBoard) --> (Mainboard)
-(LogicPowerManagementBoard) --> (VoltageCovertorBoard)
-(VoltageCovertorBoard) --> (MID-360S)
-(Mainboard) ..> (C620 ESCHub)
-(C620 ESCHub) ..> (C620 x3)
-(Mainboard) ..> (C610 ESCHub)
-(C610 ESCHub) ..> (BucketArmHoldC610)
-(C610 ESCHub) ..> (LoadingShiftC610)
-(C610 ESCHub) ..> (LoadingRotateC610)
-(C610 ESCHub) ..> (DeskArmC610)
-(Mainboard) ..> (VESC ESCHub)
-(VESC ESCHub) ..> (VESC)
-(Mainboard) ..> (HTMDv2.2c)
-(Mainboard) ..> (KNI-Servo)
-(Mainboard) ..> (KNI-Servo-LED)
-(Mainboard) ..> (TrinityDeviceController24V)
-(Mainboard) ..> (Jetson)
-(Mainboard) ..> (PowerManagementBoard)
-(Mainboard) ..> (VoltageCovertorBoard)
-(Mainboard) ..> (RemoteEMSBoard)
+legend top left
+  |= 線種 |= 意味 |
+  |<back:#CC0000>   </back> 実線(赤) | 電源ライン (Power) |
+  |<back:#1A73E8>   </back> 点線(青) | CAN + 5V 信号ライン (Signal) |
+  ※ 各基板(HTMD等)は内部で制御系統と駆動系統が十分に絶縁されている前提
+  ※ 点線(CAN+5V)は信号だけでなく5V電源も供給する
+endlegend
+
+' =====================================================
+' バッテリー
+' =====================================================
+package "バッテリー" {
+  component "Lipo 5S\n(駆動用主電源)" as Lipo5S
+  component "Lipo 4S" as Lipo4S
+  component "Lipo 3S" as Lipo3S
+}
+
+' =====================================================
+' 駆動系 電源ライン (5S)
+' =====================================================
+package "駆動系 電源ライン (5S)" #EAF3FF {
+  component "Fuse 30A" as Fuse30A
+  component "VoltageMeter 5S\n(電圧監視)" as VMeter5S
+  component "PowerManagementBoard\n(EMS連動 主電源遮断)" as PMB
+  component "PowerDistributionBoard\n(電源分配 / 大容量C搭載)" as PDB
+}
+
+Lipo5S -[#CC0000]-> Fuse30A
+Fuse30A -[#CC0000]-> VMeter5S
+VMeter5S -[#CC0000]-> PMB
+PMB -[#CC0000]-> PDB
+
+note right of PDB
+  大容量キャパシタ搭載。
+  複数アクチュエータ同時動作時の
+  瞬間的電流ピークを吸収し、
+  バス電圧の落ち込みを抑制する。
+end note
+
+' =====================================================
+' 非常停止系統 (EMS)
+' =====================================================
+package "非常停止系統 (EMS)" #FFF3E0 {
+  component "EMS SW\n(機体上 非常停止)" as EMS_SW
+  component "Remote EMS SW\n(送信機側 非常停止)" as RemoteEMS_SW
+  component "RemoteEMSBoard\n(CAN+5Vより受電)" as RemoteEMSBoard
+}
+
+EMS_SW .[#1A73E8].> PMB : Signal
+RemoteEMS_SW .[#1A73E8].> RemoteEMSBoard : Signal
+RemoteEMSBoard .[#1A73E8].> PMB : Signal
+
+' =====================================================
+' 駆動アクチュエータ (ホイール)
+' =====================================================
+package "駆動アクチュエータ (ホイール)" {
+  component VESC
+  component "BLDC-NEO" as BLDC_NEO
+  component "XT60→XT30 変換×3" as XT_ADPT
+  component "C620 ×3" as C620x3
+  component "ホイール M3508" as WheelM3508
+}
+
+PDB -[#CC0000]-> VESC
+VESC -[#CC0000]-> BLDC_NEO
+PDB -[#CC0000]-> XT_ADPT
+XT_ADPT -[#CC0000]-> C620x3
+C620x3 -[#CC0000]-> WheelM3508
+
+' =====================================================
+' バケットアーム系
+' =====================================================
+package "バケットアーム系" {
+  component "BucketArmHoldC610" as BAH_C610
+  component "BucketArmHold M2006" as BAH_M2006
+  component "HTMD v2.2c\n(高さ制御ドライバ)" as HTMD
+  component "BucketArmHight\nMS-385PH" as BAHeight
+}
+
+PDB -[#CC0000]-> BAH_C610
+BAH_C610 -[#CC0000]-> BAH_M2006
+PDB -[#CC0000]-> HTMD
+HTMD -[#CC0000]-> BAHeight
+
+' =====================================================
+' ロード(積載)系
+' =====================================================
+package "ロード系" {
+  component "LoadingShiftC610" as LS_C610
+  component "LoadingShift M2006" as LS_M2006
+  component "LoadingRotateC610" as LR_C610
+  component "LoadingRotate M2006" as LR_M2006
+}
+
+PDB -[#CC0000]-> LS_C610
+LS_C610 -[#CC0000]-> LS_M2006
+PDB -[#CC0000]-> LR_C610
+LR_C610 -[#CC0000]-> LR_M2006
+
+' =====================================================
+' デスクアーム系
+' =====================================================
+package "デスクアーム系" {
+  component "DeskArmC610" as DA_C610
+  component "DeskArmHookPos M2006" as DA_M2006
+  component "KNI-Servo\n(5V降圧)" as KNI_Servo
+  component "DeskArmHold MG996R" as DA_Servo
+  component "KNI-Servo-LED\n(5V降圧)" as KNI_LED
+  component "LED ×3" as LEDx3
+}
+
+PDB -[#CC0000]-> DA_C610
+DA_C610 -[#CC0000]-> DA_M2006
+PDB -[#CC0000]-> KNI_Servo
+KNI_Servo -[#CC0000]-> DA_Servo
+PDB -[#CC0000]-> KNI_LED
+KNI_LED -[#CC0000]-> LEDx3
+
+' =====================================================
+' 空圧系統
+' =====================================================
+package "空圧系統" #E8F5E9 {
+  component "TrinityDeviceController\n24V (24V昇圧)" as Trinity24V
+  component "AirLauncher ×3\n(電磁弁想定)" as AirLauncher
+  component ToggleSW
+  component "AirRegulatorControlBoard" as ARCB
+  component "AirRegulator" as AirReg
+}
+
+PDB -[#CC0000]-> Trinity24V
+Trinity24V -[#CC0000]-> AirLauncher : 電磁弁想定
+Trinity24V -[#CC0000]-> ToggleSW
+ToggleSW -[#CC0000]-> ARCB
+ARCB .[#1A73E8].> AirReg : Signal
+AirReg -[#CC0000]-> AirLauncher : 空気圧調整
+
+note bottom of ARCB
+  ※ MainboardからのCAN接続は無し。
+  ToggleSWの状態のみで自律動作する
+end note
+
+' =====================================================
+' ESC Hub (絶縁)
+' =====================================================
+package "ESC Hub 群 (CAN/電源 絶縁)" #FCE4EC {
+  component "C620 ESCHub" as C620Hub
+  component "C610 ESCHub" as C610Hub
+  component "VESC ESCHub" as VESCHub
+}
+
+PDB -[#CC0000]-> C620Hub
+PDB -[#CC0000]-> C610Hub
+PDB -[#CC0000]-> VESCHub
+
+' =====================================================
+' 制御系 電源ライン (3S/4S) ロジック側
+' =====================================================
+package "制御系 電源ライン (3S/4S)" #EDE7F6 {
+  component "Fuse 10A (4S)" as Fuse10A_4S
+  component "Fuse 10A (3S)" as Fuse10A_3S
+  component "LogicPowerManagementBoard\n(無停電/ホットスワップ)" as LPMB
+  component Jetson
+  component Mainboard
+  component "VoltageCovertorBoard\n(12V降圧)" as VConv
+  component "MID-360S\n(LiDAR)" as MID360
+}
+
+Lipo4S -[#CC0000]-> Fuse10A_4S
+Lipo3S -[#CC0000]-> Fuse10A_3S
+Fuse10A_4S -[#CC0000]-> LPMB
+Fuse10A_3S -[#CC0000]-> LPMB
+LPMB -[#CC0000]-> Jetson
+LPMB -[#CC0000]-> Mainboard
+LPMB -[#CC0000]-> VConv
+VConv -[#CC0000]-> MID360
+
+note right of LPMB
+  無停電電源装置(UPS)的機能。
+  4S/3Sの片方を交換中でも
+  もう一方から給電を継続し、
+  電源瞬断を防止する。
+end note
+
+' =====================================================
+' CAN 制御ライン (Mainboard ⇔ 各ESC/基板)
+' =====================================================
+Mainboard .[#1A73E8].> C620Hub : CAN
+C620Hub .[#1A73E8].> C620x3 : CAN(絶縁後)
+Mainboard .[#1A73E8].> C610Hub : CAN
+C610Hub .[#1A73E8].> BAH_C610 : CAN(絶縁後)
+C610Hub .[#1A73E8].> LS_C610 : CAN(絶縁後)
+C610Hub .[#1A73E8].> LR_C610 : CAN(絶縁後)
+C610Hub .[#1A73E8].> DA_C610 : CAN(絶縁後)
+Mainboard .[#1A73E8].> VESCHub : CAN
+VESCHub .[#1A73E8].> VESC : CAN(絶縁後)
+Mainboard .[#1A73E8].> HTMD : CAN
+Mainboard .[#1A73E8].> KNI_Servo : CAN
+Mainboard .[#1A73E8].> KNI_LED : CAN
+Mainboard .[#1A73E8].> Trinity24V : CAN
+Mainboard .[#1A73E8].> Jetson : CAN
+Mainboard .[#1A73E8].> PMB : CAN
+Mainboard .[#1A73E8].> VConv : CAN
+Mainboard .[#1A73E8].> RemoteEMSBoard : CAN+5V(電源兼用)
 
 @enduml
