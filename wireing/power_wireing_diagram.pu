@@ -1,6 +1,6 @@
-@startuml PowerWiringDiagram_v4_Power
+@startuml PowerWiringDiagram_v5_Power
 
-title 電源系統図 v3 (Power)
+title 電源系統図 v5 (Power)
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FFFFFF
@@ -17,38 +17,67 @@ skinparam package {
 }
 skinparam ArrowFontSize 11
 skinparam shadowing false
+scale max 4960*3508
 
 legend top left
-  |<back:#CC0000>   </back> 実線(赤) | 電源ライン (Power) |
-  制御系統は別図「制御系統図」を参照
+  |<back:#E53935>   </back> 5S駆動 (18.5〜21V) |
+  |<back:#FB8C00>   </back> 4S直系 (14.8〜16.8V) |
+  |<back:#FDD835>   </back> 3S直系 (11.1〜12.6V) |
+  |<back:#6D4C41>   </back> 外部AC/DC入力 (19V) |
+  |<back:#00897B>   </back> LPMB出力 無停電統合バス (11.1〜16.8V可変) |
+  |<back:#43A047>   </back> 24V (TrinityDeviceController出力) |
+  |<back:#C0CA33>   </back> 12V (VoltageCovertorBoard出力) |
+  |<back:#8E24AA>   </back> 5V (KNI-Servo / KNI-Servo-LED出力) |
+  |<back:#D81B60>   </back> 可変電圧アナログ信号 |
+  |<back:#B0BEC5>   </back> 空気圧配管 (非電気) |
+  CAN/信号系統は別図「CAN/信号系統図」を参照
 endlegend
 
-' =====================================================
 package "バッテリー" {
-  component "Lipo 5S\n(駆動用主電源)" as Lipo5S
+  component "Lipo 5S" as Lipo5S
+  component "Lipo 4S" as Lipo4S
+  component "Lipo 3S" as Lipo3S
+  component "外部AC/DCコンバータ\n19V" as External_DC
 }
 
-' =====================================================
 package "駆動系 電源ライン (5S)" #EAF3FF {
   component "Fuse 30A" as Fuse30A
-  component "VoltageMeter 5S\n(電圧監視)" as VMeter5S
-  component "PowerManagementBoard\n(EMS連動 主電源遮断)" as PMB
-  component "PowerDistributionBoard\n(電源分配 / 大容量C搭載)" as PDB
+  component "VoltageMeter 5S" as VMeter5S
+  component "PowerManagementBoard" as PMB
+  component "PowerDistributionBoard\n(大容量C搭載)" as PDB
 }
 
-Lipo5S -[#CC0000]-> Fuse30A
-Fuse30A -[#CC0000]-> VMeter5S
-VMeter5S -[#CC0000]-> PMB
-PMB -[#CC0000]-> PDB
+Lipo5S -[#E53935]-> Fuse30A
+Fuse30A -[#E53935]-> VMeter5S
+VMeter5S -[#E53935]-> PMB
+PMB -[#E53935]-> PDB
 
-note right of PDB
-  大容量キャパシタ搭載。
-  複数アクチュエータ同時動作時の
-  瞬間的電流ピークを吸収し、
-  バス電圧の落ち込みを抑制する。
-end note
+package "制御系 電源ライン (4S/3S/外部)" #f0f6e7 {
+  component "Fuse 10A (4S)" as Fuse10A_4S
+  component "Fuse 10A (3S)" as Fuse10A_3S
+  component "LogicPowerManagementBoard\n(無停電)" as LPMB
+}
 
-' =====================================================
+Lipo4S -[#FB8C00]-> Fuse10A_4S
+Fuse10A_4S -[#FB8C00]-> LPMB
+Lipo3S -[#FDD835]-> Fuse10A_3S
+Fuse10A_3S -[#FDD835]-> LPMB
+External_DC -[#6D4C41]-> LPMB
+
+package "制御中枢" #EDE7F6 {
+  component Jetson
+  component Mainboard
+  component "VoltageCovertorBoard" as VConv
+  component "MID-360S\n(LiDAR)" as MID360S
+  component "L2スイッチ" as L2SW
+}
+
+LPMB -[#00897B]-> Jetson
+LPMB -[#00897B]-> Mainboard
+LPMB -[#00897B]-> VConv
+VConv -[#C0CA33]-> MID360S : 12V
+VConv -[#8E24AA]-> L2SW : 5V
+
 package "足回り (ホイール)" {
   component "XT60→XT30\n(Front)" as XT_F
   component "XT60→XT30\n(Left)" as XT_L
@@ -61,38 +90,36 @@ package "足回り (ホイール)" {
   component "ホイール M3508\n(Right)" as Wheel_R
 }
 
-PDB -[#CC0000]-> XT_F
-XT_F -[#CC0000]-> C620_F
-C620_F -[#CC0000]-> Wheel_F
-PDB -[#CC0000]-> XT_L
-XT_L -[#CC0000]-> C620_L
-C620_L -[#CC0000]-> Wheel_L
-PDB -[#CC0000]-> XT_R
-XT_R -[#CC0000]-> C620_R
-C620_R -[#CC0000]-> Wheel_R
+PDB -[#E53935]-> XT_F
+XT_F -[#E53935]-> C620_F
+C620_F -[#E53935]-> Wheel_F
+PDB -[#E53935]-> XT_L
+XT_L -[#E53935]-> C620_L
+C620_L -[#E53935]-> Wheel_L
+PDB -[#E53935]-> XT_R
+XT_R -[#E53935]-> C620_R
+C620_R -[#E53935]-> Wheel_R
 
 package "ベルト直動" {
   component VESC
   component "BLDC-NEO" as BLDC_NEO
 }
 
-PDB -[#CC0000]-> VESC
-VESC -[#CC0000]-> BLDC_NEO
+PDB -[#E53935]-> VESC
+VESC -[#E53935]-> BLDC_NEO
 
-' =====================================================
 package "バケツアーム系" {
   component "BucketArmHoldC610" as BAH_C610
   component "BucketArmHold M2006" as BAH_M2006
-  component "HTMD v2.2c\n(高さ制御モータードライバ)" as HTMD
+  component "HTMD v2.2c" as HTMD
   component "BucketArmHight\nMS-385PH" as BAHeight
 }
 
-PDB -[#CC0000]-> BAH_C610
-BAH_C610 -[#CC0000]-> BAH_M2006
-PDB -[#CC0000]-> HTMD
-HTMD -[#CC0000]-> BAHeight
+PDB -[#E53935]-> BAH_C610
+BAH_C610 -[#E53935]-> BAH_M2006
+PDB -[#E53935]-> HTMD
+HTMD -[#E53935]-> BAHeight
 
-' =====================================================
 package "装填系" {
   component "LoadingShiftC610" as LS_C610
   component "LoadingShift M2006" as LS_M2006
@@ -100,37 +127,35 @@ package "装填系" {
   component "LoadingRotate M2006" as LR_M2006
 }
 
-PDB -[#CC0000]-> LS_C610
-LS_C610 -[#CC0000]-> LS_M2006
-PDB -[#CC0000]-> LR_C610
-LR_C610 -[#CC0000]-> LR_M2006
+PDB -[#E53935]-> LS_C610
+LS_C610 -[#E53935]-> LS_M2006
+PDB -[#E53935]-> LR_C610
+LR_C610 -[#E53935]-> LR_M2006
 
-' =====================================================
 package "机用アーム系" {
   component "DeskArmC610" as DA_C610
   component "DeskArmHookPos M2006" as DA_M2006
-  component "KNI-Servo\n(5V降圧)" as KNI_Servo
+  component "KNI-Servo" as KNI_Servo
   component "DeskArmHold MG996R" as DA_Servo
-  component "KNI-Servo-LED\n(5V降圧)" as KNI_LED
+  component "KNI-Servo-LED" as KNI_LED
   component "LED\nBeltVel" as LED_Belt
   component "LED\nAirLauncherSelect" as LED_AirSel
   component "LED\nRobotState" as LED_State
   component "LED\nTargetRollAngle" as LED_Roll
 }
 
-PDB -[#CC0000]-> DA_C610
-DA_C610 -[#CC0000]-> DA_M2006
-PDB -[#CC0000]-> KNI_Servo
-KNI_Servo -[#CC0000]-> DA_Servo
-PDB -[#CC0000]-> KNI_LED
-KNI_LED -[#CC0000]-> LED_Belt
-KNI_LED -[#CC0000]-> LED_AirSel
-KNI_LED -[#CC0000]-> LED_State
-KNI_LED -[#CC0000]-> LED_Roll
+PDB -[#E53935]-> DA_C610
+DA_C610 -[#E53935]-> DA_M2006
+PDB -[#E53935]-> KNI_Servo
+KNI_Servo -[#8E24AA]-> DA_Servo
+PDB -[#E53935]-> KNI_LED
+KNI_LED -[#8E24AA]-> LED_Belt
+KNI_LED -[#8E24AA]-> LED_AirSel
+KNI_LED -[#8E24AA]-> LED_State
+KNI_LED -[#8E24AA]-> LED_Roll
 
-' =====================================================
 package "空圧系統" #E8F5E9 {
-  component "TrinityDeviceController\n24V (24V昇圧)" as Trinity24V
+  component "TrinityDeviceController\n24V" as Trinity24V
   component ToggleSW
   component "AirRegulatorControlBoard" as ARCB
   component "AirRegulator" as AirReg
@@ -139,24 +164,23 @@ package "空圧系統" #E8F5E9 {
   component "AirLauncher\n(机2)" as Air_Desk2
 }
 
-PDB -[#CC0000]-> Trinity24V
-Trinity24V --> Air_Flag : 電磁弁
-Trinity24V --> Air_Desk1 : 電磁弁
-Trinity24V --> Air_Desk2 : 電磁弁
-Trinity24V --> ARCB : 24V
-ARCB --> ToggleSW : 電圧可変信号
-ToggleSW --> AirReg : 電圧可変信号
-AirReg --> Air_Flag : 空気圧調整
+PDB -[#E53935]-> Trinity24V
+Trinity24V -[#43A047]-> Air_Flag : 電磁弁
+Trinity24V -[#43A047]-> Air_Desk1 : 電磁弁
+Trinity24V -[#43A047]-> Air_Desk2 : 電磁弁
+Trinity24V -[#43A047]-> ARCB : 24V
+ARCB -[#D81B60]-> ToggleSW : 電圧可変信号
+ToggleSW -[#D81B60]-> AirReg : 電圧可変信号
+AirReg -[#B0BEC5]-> Air_Flag : 空気圧調整
 
-' =====================================================
-package "ESC Hub 群 (CAN/電源 絶縁)" #FCE4EC {
+package "ESC Hub 群" #FCE4EC {
   component "C620 ESCHub" as C620Hub
   component "C610 ESCHub" as C610Hub
   component "VESC ESCHub" as VESCHub
 }
 
-PDB -[#CC0000]-> C620Hub
-PDB -[#CC0000]-> C610Hub
-PDB -[#CC0000]-> VESCHub
+PDB -[#E53935]-> C620Hub
+PDB -[#E53935]-> C610Hub
+PDB -[#E53935]-> VESCHub
 
 @enduml
