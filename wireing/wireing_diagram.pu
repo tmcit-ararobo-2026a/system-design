@@ -77,8 +77,8 @@ package "制御中枢" #EDE7F6 {
 LPMB -[#00897B]-> Jetson
 LPMB -[#00897B]-> Mainboard
 LPMB -[#00897B]-> VConv
-VConv -[#C0CA33]-> MID360S : 12V
-VConv -[#8E24AA]-> L2SW : 5V
+VConv -[#C0CA33]> MID360S : 12V
+VConv -[#8E24AA]> L2SW : 5V
 
 package "非常停止系統 (EMS)" #FFF3E0 {
   component "EMS SW" as EMS_SW
@@ -91,11 +91,11 @@ RemoteEMS_SW .[#757575].> RemoteEMSBoard : ON/OFF Signal
 RemoteEMSBoard .[#757575].> PMB : CAN & ON/OFF Signal
 Mainboard .[#1E88E5].> RemoteEMSBoard : CAN+5V(電源兼用)
 Mainboard .[#1E88E5].> PMB : CAN
-Mainboard .[#1E88E5].> Jetson : CAN
+Mainboard .[#1E88E5]> Jetson : CAN
 Mainboard .[#1E88E5].> VConv : CAN
-Jetson .[#212121]right.> L2SW : Ethernet
-L2SW .[#212121].> Mainboard : Ethernet
-L2SW .[#212121].> MID360S : Ethernet
+Jetson .[#212121]> L2SW : Ethernet
+L2SW .[#212121]> Mainboard : Ethernet
+L2SW .[#212121]> MID360S : Ethernet
 
 package "足回り (ホイール)" {
   component "XT60→XT30\n(Front)" as XT_F
