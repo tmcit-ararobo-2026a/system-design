@@ -17,7 +17,7 @@ skinparam package {
 }
 skinparam ArrowFontSize 11
 skinparam shadowing false
-scale max 4960*3508
+scale 4960*3508
 
 legend top left
   |<back:#1E88E5>   </back> CAN + 5V 信号ライン (電源兼用) |
@@ -32,7 +32,7 @@ package "非常停止系統 (EMS)" #FFF3E0 {
   component "RemoteEMSBoard\n(CAN+5Vより受電)" as RemoteEMSBoard
 }
 
-package "制御中枢" #EDE7F6 {
+package "制御中枢" as CoreLogic #EDE7F6 {
   component "PowerManagementBoard" as PMB
   component Mainboard
   component Jetson
@@ -48,7 +48,7 @@ Mainboard .[#1E88E5].> RemoteEMSBoard : CAN+5V(電源兼用)
 Mainboard .[#1E88E5].> PMB : CAN
 Mainboard .[#1E88E5].> Jetson : CAN
 Mainboard .[#1E88E5].> VConv : CAN
-Jetson .[#212121].> L2SW : Ethernet
+Jetson .[#212121]right.> L2SW : Ethernet
 L2SW .[#212121].> Mainboard : Ethernet
 L2SW .[#212121].> MID360S : Ethernet
 
@@ -59,7 +59,7 @@ package "足回り (ホイール)" {
   component "C620 (Right)" as C620_R
 }
 
-package "バケツアーム / 机用アーム / 空圧" {
+package "バケツアーム / 机用アーム / 空圧" as Actuators {
   component "HTMD v2.2c" as HTMD
   component "KNI-Servo" as KNI_Servo
   component "KNI-Servo-LED" as KNI_LED
@@ -68,7 +68,7 @@ package "バケツアーム / 机用アーム / 空圧" {
   component "AirRegulator" as AirReg
 }
 
-package "ESC Hub 群" #FCE4EC {
+package "ESCHub" as ESCHub #FCE4EC {
   component "C620 ESCHub" as C620Hub
   component "C610 ESCHub" as C610Hub
   component "VESC ESCHub" as VESCHub
