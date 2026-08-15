@@ -50,8 +50,6 @@ end note
 
 ' =====================================================
 package "足回り (ホイール)" {
-  component VESC
-  component "BLDC-NEO" as BLDC_NEO
   component "XT60→XT30\n(Front)" as XT_F
   component "XT60→XT30\n(Left)" as XT_L
   component "XT60→XT30\n(Right)" as XT_R
@@ -63,8 +61,6 @@ package "足回り (ホイール)" {
   component "ホイール M3508\n(Right)" as Wheel_R
 }
 
-PDB -[#CC0000]-> VESC
-VESC -[#CC0000]-> BLDC_NEO
 PDB -[#CC0000]-> XT_F
 XT_F -[#CC0000]-> C620_F
 C620_F -[#CC0000]-> Wheel_F
@@ -74,6 +70,14 @@ C620_L -[#CC0000]-> Wheel_L
 PDB -[#CC0000]-> XT_R
 XT_R -[#CC0000]-> C620_R
 C620_R -[#CC0000]-> Wheel_R
+
+package "ベルト直動" {
+  component VESC
+  component "BLDC-NEO" as BLDC_NEO
+}
+
+PDB -[#CC0000]-> VESC
+VESC -[#CC0000]-> BLDC_NEO
 
 ' =====================================================
 package "バケツアーム系" {
