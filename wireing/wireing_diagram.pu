@@ -1,6 +1,6 @@
 @startuml PowerWiringDiagram_v3
 
-title 足回り／機構 電源配線図 (Power Wiring Diagram) v3
+title 電源配線図v3
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FFFFFF
@@ -22,7 +22,7 @@ legend top left
   |= 線種 |= 意味 |
   |<back:#CC0000>   </back> 実線(赤) | 電源ライン (Power) |
   |<back:#1A73E8>   </back> 点線(青) | CAN + 5V 信号ライン (Signal) |
-  ※ 各基板(HTMD等)は内部で制御系統と駆動系統が十分に絶縁されている前提
+  ※ 各基板(HTMD等)は内部で制御系統と駆動系統が十分に絶縁されている
   ※ 点線(CAN+5V)は信号だけでなく5V電源も供給する
 endlegend
 
@@ -71,9 +71,9 @@ RemoteEMS_SW .[#1A73E8].> RemoteEMSBoard : Signal
 RemoteEMSBoard .[#1A73E8].> PMB : Signal
 
 ' =====================================================
-' 駆動アクチュエータ (ホイール)
+' 足回り
 ' =====================================================
-package "駆動アクチュエータ (ホイール)" {
+package "足回り" {
   component VESC
   component "BLDC-NEO" as BLDC_NEO
   component "XT60→XT30 変換×3" as XT_ADPT
@@ -88,12 +88,12 @@ XT_ADPT -[#CC0000]-> C620x3
 C620x3 -[#CC0000]-> WheelM3508
 
 ' =====================================================
-' バケットアーム系
+' バケツアーム系
 ' =====================================================
-package "バケットアーム系" {
+package "バケツアーム系" {
   component "BucketArmHoldC610" as BAH_C610
   component "BucketArmHold M2006" as BAH_M2006
-  component "HTMD v2.2c\n(高さ制御ドライバ)" as HTMD
+  component "HTMD v2.2c\n(高さ制御機能モータードライバ)" as HTMD
   component "BucketArmHight\nMS-385PH" as BAHeight
 }
 
@@ -103,9 +103,9 @@ PDB -[#CC0000]-> HTMD
 HTMD -[#CC0000]-> BAHeight
 
 ' =====================================================
-' ロード(積載)系
+' 装填系
 ' =====================================================
-package "ロード系" {
+package "装填系" {
   component "LoadingShiftC610" as LS_C610
   component "LoadingShift M2006" as LS_M2006
   component "LoadingRotateC610" as LR_C610
@@ -118,9 +118,9 @@ PDB -[#CC0000]-> LR_C610
 LR_C610 -[#CC0000]-> LR_M2006
 
 ' =====================================================
-' デスクアーム系
+' 机用アーム系
 ' =====================================================
-package "デスクアーム系" {
+package "机用アーム系" {
   component "DeskArmC610" as DA_C610
   component "DeskArmHookPos M2006" as DA_M2006
   component "KNI-Servo\n(5V降圧)" as KNI_Servo
