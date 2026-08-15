@@ -24,11 +24,11 @@
 (PowerDistributionBoard) --> (KNI-Servo-LED)
 (KNI-Servo-LED) --> (LED x3)
 (PowerDistributionBoard) --> (TrinityDeviceController24V)
-(TrinityDeviceController24V) --> (AirRauncher x3) : 電磁弁想定
+(TrinityDeviceController24V) --> (AirLauncher x3) : 電磁弁想定
 (TrinityDeviceController24V) --> (ToggleSW)
 (ToggleSW) --> (AirRegulatorControlBoard)
 (AirRegulatorControlBoard) ..> (AirRegulator) : Signal
-(AirRegulator) --> (AirRauncher x3) : 空気圧調整
+(AirRegulator) --> (AirLauncher x3) : 空気圧調整
 (PowerDistributionBoard) --> (C620 ESCHub)
 (PowerDistributionBoard) --> (C610 ESCHub)
 (PowerDistributionBoard) --> (VESC ESCHub)
@@ -37,8 +37,10 @@
 (Remote EMS SW) ..> (RemoteEMSBoard) : Signal
 (RemoteEMSBoard) ..> (PowerManagementBoard)
 
-(Lipo4S) --> (LogicPowerManagementBoard)
-(Lipo3S) --> (LogicPowerManagementBoard)
+(Lipo4S) --> (Fuse10A-4S)
+(Lipo3S) --> (Fuse10A-3S)
+(Fuse10A-4S) --> (LogicPowerManagementBoard)
+(Fuse10A-3S) --> (LogicPowerManagementBoard)
 (LogicPowerManagementBoard) --> (Jetson)
 (LogicPowerManagementBoard) --> (Mainboard)
 (LogicPowerManagementBoard) --> (VoltageCovertorBoard)
