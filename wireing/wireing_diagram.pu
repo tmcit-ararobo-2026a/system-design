@@ -24,7 +24,11 @@
 (PowerDistributionBoard) --> (KNI-Servo-LED)
 (KNI-Servo-LED) --> (LED x3)
 (PowerDistributionBoard) --> (TrinityDeviceController24V)
-(TrinityDeviceController24V) --> (AirRauncher x3)
+(TrinityDeviceController24V) --> (AirRauncher x3) : 電磁弁想定
+(TrinityDeviceController24V) --> (ToggleSW)
+(ToggleSW) --> (AirRegulatorControlBoard)
+(AirRegulatorControlBoard) ..> (AirRegulator) : Signal
+(AirRegulator) --> (AirRauncher x3) : 空気圧調整
 (PowerDistributionBoard) --> (C620 ESCHub)
 (PowerDistributionBoard) --> (C610 ESCHub)
 (PowerDistributionBoard) --> (VESC ESCHub)
