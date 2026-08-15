@@ -93,7 +93,7 @@ Mainboard .[#1E88E5].> RemoteEMSBoard : CAN+5V(電源兼用)
 Mainboard .[#1E88E5].> PMB : CAN
 Mainboard .[#1E88E5].> Jetson : CAN
 Mainboard .[#1E88E5].> VConv : CAN
-Jetson .[#212121].> L2SW : Ethernet
+Jetson .[#212121]right.> L2SW : Ethernet
 L2SW .[#212121].> Mainboard : Ethernet
 L2SW .[#212121].> MID360S : Ethernet
 
