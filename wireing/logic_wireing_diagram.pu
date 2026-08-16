@@ -1,6 +1,6 @@
-@startuml PowerWiringDiagram_v5_Signal
+@startuml PowerWiringDiagram_v6_Signal
 
-title CAN/信号系統図 v5 (Signal)
+title CAN/信号系統図 v6 (CAN-BUSごとに整理)
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FFFFFF
@@ -17,38 +17,68 @@ skinparam package {
 }
 skinparam ArrowFontSize 11
 skinparam shadowing false
-scale 4960*3508
+scale max 4960*3508
 
 legend top left
-  |<back:#1E88E5>   </back> CAN + 5V 信号ライン (電源兼用) |
+  |<back:#1E88E5>   </back> CAN1 / CAN2 / CAN3 バス + 5V信号 |
   |<back:#757575>   </back> ON/OFF デジタル信号 (EMS系) |
   |<back:#212121>   </back> Ethernet 信号 (電源含まず) |
   電源系統は別図「電源系統図」を参照
 endlegend
 
-package "非常停止系統 (EMS)" #FFF3E0 {
-  component "EMS SW" as EMS_SW
-  component "Remote EMS SW" as RemoteEMS_SW
+package "メイン制御ボード" #E3F2FD {
+  component Mainboard
+}
+
+package "CAN1バス" #FFF9C4 {
+  component "TrinityDeviceController\n24V" as Trinity24V
+  component "HTMD v2.2c" as HTMD
+  component "KNI-Servo" as KNI_Servo
+  component "KNI-Servo-LED" as KNI_LED
+}
+
+Mainboard .[#1E88E5].> Trinity24V : CAN1
+Trinity24V .[#1E88E5].> HTMD : CAN1
+HTMD .[#1E88E5].> KNI_Servo : CAN1
+KNI_Servo .[#1E88E5].> KNI_LED : CAN1
+
+package "CAN2バス" #FFE0B2 {
+  component "PowerManagementBoard" as PMB
+  component Jetson
+  component "VoltageCovertorBoard" as VConv
   component "RemoteEMSBoard\n(CAN+5Vより受電)" as RemoteEMSBoard
 }
 
-package "制御中枢" as CoreLogic #EDE7F6 {
-  component "PowerManagementBoard" as PMB
-  component Mainboard
-  component Jetson
-  component "VoltageCovertorBoard" as VConv
-  component "MID-360S\n(LiDAR)" as MID360S
-  component "L2スイッチ" as L2SW
+Mainboard .[#1E88E5].> Jetson : CAN2
+Jetson .[#1E88E5].> VConv : CAN2
+VConv .[#1E88E5].> PMB : CAN2
+PMB .[#1E88E5].> RemoteEMSBoard : CAN2+5V(電源兼用)
+
+package "CAN3バス" #E1BEE7 {
+  component "C620 ESCHub" as C620Hub
+  component "C610 ESCHub" as C610Hub
+  component "VESC ESCHub" as VESCHub
+}
+
+Mainboard .[#1E88E5].> C620Hub : CAN3
+C620Hub .[#1E88E5].> C610Hub : CAN3
+C610Hub .[#1E88E5].> VESCHub : CAN3
+
+package "非常停止系統 (EMS)" #FFF3E0 {
+  component "EMS SW" as EMS_SW
+  component "Remote EMS SW" as RemoteEMS_SW
 }
 
 EMS_SW .[#757575].> PMB : ON/OFF Signal
 RemoteEMS_SW .[#757575].> RemoteEMSBoard : ON/OFF Signal
-RemoteEMSBoard .[#757575].> PMB : CAN & ON/OFF Signal
-Mainboard .[#1E88E5].> RemoteEMSBoard : CAN2+5V(電源兼用)
-Mainboard .[#1E88E5].> PMB : CAN2
-Mainboard .[#1E88E5].> Jetson : CAN2
-Mainboard .[#1E88E5].> VConv : CAN2
-Jetson .[#212121]right.> L2SW : Ethernet
+RemoteEMSBoard .[#757575].> PMB : ON/OFF Signal
+
+package "Ethernet周辺機器" {
+  component "MID-360S\n(LiDAR)" as MID360S
+  component "L2スイッチ" as L2SW
+}
+
+L2SW .[#212121].> Jetson : Ethernet
 L2SW .[#212121].> Mainboard : Ethernet
 L2SW .[#212121].> MID360S : Ethernet
 
@@ -59,20 +89,10 @@ package "足回り (ホイール)" {
   component "C620 (Right)" as C620_R
 }
 
-package "バケツアーム / 机用アーム / 空圧" as Actuators {
-  component "HTMD v2.2c" as HTMD
-  component "KNI-Servo" as KNI_Servo
-  component "KNI-Servo-LED" as KNI_LED
-  component "TrinityDeviceController\n24V" as Trinity24V
-  component "AirRegulatorControlBoard" as ARCB
-  component "AirRegulator" as AirReg
-}
-
-package "ESCHub" as ESCHub #FCE4EC {
-  component "C620 ESCHub" as C620Hub
-  component "C610 ESCHub" as C610Hub
-  component "VESC ESCHub" as VESCHub
-}
+C620Hub .[#1E88E5].> C620_F : CAN(絶縁後)
+C620Hub .[#1E88E5].> C620_L : CAN(絶縁後)
+C620Hub .[#1E88E5].> C620_R : CAN(絶縁後)
+VESCHub .[#1E88E5].> VESC : CAN(絶縁後)
 
 package "C610駆動アクチュエータ" {
   component "BucketArmHoldC610" as BAH_C610
@@ -81,24 +101,15 @@ package "C610駆動アクチュエータ" {
   component "DeskArmC610" as DA_C610
 }
 
-Mainboard .[#1E88E5].> HTMD : CAN1
-Mainboard .[#1E88E5].> KNI_Servo : CAN1
-Mainboard .[#1E88E5].> KNI_LED : CAN1
-Mainboard .[#1E88E5].> Trinity24V : CAN1
-
-Mainboard .[#1E88E5].> C620Hub : CAN3
-C620Hub .[#1E88E5].> C620_F : CAN(絶縁後)
-C620Hub .[#1E88E5].> C620_L : CAN(絶縁後)
-C620Hub .[#1E88E5].> C620_R : CAN(絶縁後)
-
-Mainboard .[#1E88E5].> C610Hub : CAN3
 C610Hub .[#1E88E5].> BAH_C610 : CAN(絶縁後)
 C610Hub .[#1E88E5].> LS_C610 : CAN(絶縁後)
 C610Hub .[#1E88E5].> LR_C610 : CAN(絶縁後)
 C610Hub .[#1E88E5].> DA_C610 : CAN(絶縁後)
 
-Mainboard .[#1E88E5].> VESCHub : CAN3
-VESCHub .[#1E88E5].> VESC : CAN(絶縁後)
+package "空圧系統" {
+  component "AirRegulatorControlBoard" as ARCB
+  component "AirRegulator" as AirReg
+}
 
 ARCB .[#1E88E5].> AirReg : Signal
 
