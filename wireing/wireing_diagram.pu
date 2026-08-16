@@ -88,14 +88,14 @@ package "非常停止系統 (EMS)" #FFF3E0 {
 
 EMS_SW .[#757575].> PMB : ON/OFF Signal
 RemoteEMS_SW .[#757575].> RemoteEMSBoard : ON/OFF Signal
-RemoteEMSBoard .[#757575].> PMB : CAN & ON/OFF Signal
-Mainboard .[#1E88E5].> RemoteEMSBoard : CAN+5V(電源兼用)
-Mainboard .[#1E88E5].> PMB : CAN
-Mainboard .[#1E88E5]> Jetson : CAN
-Mainboard .[#1E88E5].> VConv : CAN
-Jetson .[#212121]> L2SW : Ethernet
-L2SW .[#212121]> Mainboard : Ethernet
-L2SW .[#212121]> MID360S : Ethernet
+RemoteEMSBoard .[#757575].> PMB : ON/OFF Signal
+PMB .[#1E88E5].> RemoteEMSBoard : CAN2+5V(電源兼用)
+VConv .[#1E88E5].> PMB : CAN2
+Mainboard .[#1E88E5].> Jetson : CAN2
+Jetson .[#1E88E5].> VConv : CAN2
+Jetson <.[#212121]. L2SW : Ethernet
+L2SW .[#212121].> Mainboard : Ethernet
+L2SW .[#212121].> MID360S : Ethernet
 
 package "足回り (ホイール)" {
   component "XT60→XT30\n(Front)" as XT_F
@@ -203,20 +203,20 @@ PDB -[#E53935]-> C620Hub
 PDB -[#E53935]-> C610Hub
 PDB -[#E53935]-> VESCHub
 
-Mainboard .[#1E88E5].> HTMD : CAN
-Mainboard .[#1E88E5].> KNI_Servo : CAN
-Mainboard .[#1E88E5].> KNI_LED : CAN
-Mainboard .[#1E88E5].> Trinity24V : CAN
-Mainboard .[#1E88E5].> C620Hub : CAN
+Mainboard .[#1E88E5].> Trinity24V : CAN1
+Trinity24V .[#1E88E5].> HTMD : CAN1
+HTMD .[#1E88E5].> KNI_Servo : CAN1
+KNI_Servo .[#1E88E5].> KNI_LED : CAN1
+Mainboard .[#1E88E5].> C620Hub : CAN3
 C620Hub .[#1E88E5].> C620_F : CAN(絶縁後)
 C620Hub .[#1E88E5].> C620_L : CAN(絶縁後)
 C620Hub .[#1E88E5].> C620_R : CAN(絶縁後)
-Mainboard .[#1E88E5].> C610Hub : CAN
+C620Hub .[#1E88E5]> C610Hub : CAN3
 C610Hub .[#1E88E5].> BAH_C610 : CAN(絶縁後)
 C610Hub .[#1E88E5].> LS_C610 : CAN(絶縁後)
 C610Hub .[#1E88E5].> LR_C610 : CAN(絶縁後)
 C610Hub .[#1E88E5].> DA_C610 : CAN(絶縁後)
-Mainboard .[#1E88E5].> VESCHub : CAN
+C610Hub .[#1E88E5]> VESCHub : CAN3
 VESCHub .[#1E88E5].> VESC : CAN(絶縁後)
 
 @enduml
