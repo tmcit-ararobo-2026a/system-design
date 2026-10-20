@@ -16,11 +16,13 @@
 (launcher speed calculator) -down-> (udp node) : ベルト直動の速度司令
 
 note top of (launcher speed calculator)
-    TFでbase linkから相手ロボットへの座標を得て、ベルト直動の指令値を計算するノード
+    TFでbase linkから相手ロボットへの座標を得て、
+    ベルト直動の指令値を計算するノード
 end note
 note top of (realsense dust cloth)  
     realsenseに直接接続し雑巾を追跡するノード
 end note
 note top of (雑巾解析node)
-    射出時の状態と指令値、フィードバック、軌道を揃えて記録し、解析するノード
+    射出時の状態と指令値、フィードバック、
+    軌道を揃えて記録し、解析するノード
 end note
