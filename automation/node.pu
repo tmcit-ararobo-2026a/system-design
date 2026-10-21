@@ -1,28 +1,69 @@
 @startuml ROS2システム
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
 
-(livox driver MID360s通信用) -down-> (gn10 pointcloud localization) : 点群・IMU
-(gn10 pointcloud localization) -down-> (path planner) : 自己位置TF
-(path planner) -down-> (path follower) : 経路
-(path follower) -down-> (udp node) : cmd vel(速度指令値)
-(gn10 pointcloud localization) -down-> (udp node) : 自己位置OKかどうか\n（boolで流石に自己位置推定できていないのに動いたら危ないから\nメイン基板側が判断して手動制御に切り替える）
-(path follower) -down-> (udp node) : 移動できるかどうか\n（安全担保ではなく、ロボットLEDに\n失敗を示すためだけの目的）
-(gn10 pointcloud localization) -down-> (lidar perception system) : 動的点群
-(lidar perception system) -down-> (path follower) : 移動バケツの位置
-(goal manager) -down-> (path planner) : ゴール指定
-(udp node) -up-> (goal manager) : メイン基板からの司令でゴールを指示
+package "センサ・ドライバ層" {
+  [livox_driver_MID360s] as Livox
+  [realsense_dust_cloth] as RealSense
+}
 
-(realsense dust cloth) -down-> (雑巾解析node) : 雑巾の軌道
-(udp node) -up-> (雑巾解析node) : ベルト直動の速度や電圧電流等の情報
-(launcher speed calculator) -down-> (udp node) : ベルト直動の速度司令
+package "gn10-navigation" {
+  [target_manager_node] as TargetMgr
+  [costmap_generator_node] as CostmapGen
+  [path_planner_node] as Planner
+  [path_follower_node] as Follower
+}
 
-note top of (launcher speed calculator)
-    TFでbase linkから相手ロボットへの座標を得て、
-    ベルト直動の指令値を計算するノード
+package "自己位置・認識層" {
+  [gn10_pointcloud_localization] as Localizer
+  [lidar_perception_system] as Perception
+}
+
+package "射出・解析系" {
+  [launcher_speed_calculator] as LauncherCalc
+  [雑巾解析node] as ClothAnalyzer
+}
+
+package "通信層" {
+  [udp_node] as UDP
+}
+
+' --- データフロー ---
+
+' 1. センサ & 自己位置
+Livox --> Localizer : 点群・IMU
+Localizer --> Planner : 自己位置 TF (map -> base_link)
+Localizer --> Perception : 動的点群データ
+Perception --> Follower : 移動バケツ座標 TF (map -> bucket_bottom)
+
+' 2. メイン基板 (UDP) ↔ ナビゲーション
+UDP --> TargetMgr : /robot/navigation_command\n/robot/target_id
+UDP --> Follower : /robot/navigation_command\n/robot/target_id
+TargetMgr --> Planner : /goal_pose (PoseStamped)
+CostmapGen --> Planner : /costmap (OccupancyGrid)
+
+Planner --> Follower : /planned_path (Path)
+Follower --> UDP : /robot/operation/cmd_vel (Twist)\n/robot/operation/navigation_status (UInt8)
+
+' 3. 射出制御 & 雑巾解析
+RealSense --> ClothAnalyzer : 雑巾の追跡軌道
+UDP --> ClothAnalyzer : ベルト直動の速度・電圧電流情報
+LauncherCalc --> UDP : ベルト直動の速度指令値
+
+' ノート
+note top of LauncherCalc
+  TFで base_link から相手ロボット/バケツへの
+  相対座標を取得し、ベルト直動の指令値を計算
 end note
-note top of (realsense dust cloth)  
-    realsenseに直接接続し雑巾を追跡するノード
+
+note top of RealSense
+  RealSenseに直接接続し
+  射出された雑巾をカメラ追跡するノード
 end note
-note top of (雑巾解析node)
-    射出時の状態と指令値、フィードバック、
-    軌道を揃えて記録し、解析するノード
+
+note top of ClothAnalyzer
+  射出時の状態・指令値・フィードバック・
+  カメラ軌道を揃えて記録・解析するノード
 end note
+
+@enduml
