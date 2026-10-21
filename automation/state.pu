@@ -17,7 +17,7 @@ Standby : 手動操縦モード
 Ready : 水平・回転移動：手動
 Ready : ベルト直動射出：手動
 Ready : ベルト直動威力：手動
-Ready : ハンド操作：自動
+Ready : ハンド操作：不可
 Moving : 水平・回転移動：自動
 Moving : ベルト直動射出：手動
 Moving : ベルト直動威力：自動
@@ -25,7 +25,7 @@ Moving : ハンド操作：不可
 Goal : 水平・回転移動：手動
 Goal : ベルト直動射出：手動
 Goal : ベルト直動威力：手動
-Goal : ハンド操作：自動
+Goal : ハンド操作：不可
 Tracking : 水平移動：手動
 Tracking : 回転移動：自動
 Tracking : ベルト直動射出：手動

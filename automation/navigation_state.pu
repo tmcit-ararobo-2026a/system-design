@@ -1,0 +1,29 @@
+@startuml
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+  ArrowColor Black
+}
+
+[*] --> Standby : 制御系統電源投入
+
+Standby --> Ready : 通信・自己位置推定成功
+Ready --> Moving : 自動移動命令 (NavigationCommand::Move)
+Moving --> Fail : 自己位置推定/通信エラー、危険領域侵入、タイムアウト
+Moving --> Goal : 目標地点に到着 (残距離 <= 3cm)
+Moving --> Ready : 移動キャンセル (NavigationCommand::Stanby)
+Goal --> Ready : 目標地点の誤差範囲外へ移動
+Ready --> Tracking : 移動バケツ追従命令 (TargetId::MovingBucket)
+Tracking --> Fail : 移動バケツ認識不可 / 範囲外
+Tracking --> Ready : 追従命令解除 (NavigationCommand::Stanby)
+Ready --> Fail : 自動移動不可能状態
+Fail --> Ready : エラー状態からの復帰
+
+Standby : 処理: 待機状態 (NavigationStatus::Stanby)
+Ready : 処理: 移動・回転命令受領可能 (NavigationStatus::Ready)
+Moving : 処理: Pure Pursuit + 終端15cm位置偏差FB制御 (NavigationStatus::Moving)
+Goal : 処理: 目標位置3cm以内達成・停止 (NavigationStatus::Goal)
+Tracking : 処理: 移動バケツ方向への旋回制御のみ (NavigationStatus::Tracking)
+Fail : 処理: エラー出力 (NavigationStatus::Fail)
+
+@endluml

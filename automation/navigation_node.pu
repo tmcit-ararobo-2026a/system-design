@@ -1,0 +1,40 @@
+@startuml
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+actor "メインマイコン" as MCU
+actor "開発者 / 調整員" as Developer
+
+package "VSCode Extension (IDE)" {
+  [VSCode Extension UI] as ExtensionUI
+}
+
+package "gn10_navigation (ROS 2)" {
+  [target_manager_node] as TargetManager
+  [costmap_generator_node] as CostmapGen
+  [path_planner_node] as Planner
+  [path_follower_node] as Follower
+}
+
+database "nhk2026_map.json" as MapJson
+database "shooting_points.yaml" as PointsYaml
+
+' データの流れ
+MapJson --> CostmapGen : フィールド形状・障害物定義
+PointsYaml <--> TargetManager : 投擲ポイント永続化
+
+MCU --> TargetManager : /robot/navigation_command (UInt8)\n/robot/target_id (UInt8)
+TargetManager --> Planner : /goal_pose (PoseStamped)
+CostmapGen --> Planner : /costmap (OccupancyGrid)
+
+Planner --> Follower : /planned_path (Path)
+Follower --> MCU : /robot/operation/navigation_status (UInt8)
+Follower --> MCU : /robot/operation/cmd_vel (Twist)
+
+' VSCode Extension との連携
+Developer --> ExtensionUI : 投擲位置 Drag & Drop / 調整
+ExtensionUI --> TargetManager : /target_manager/update_point (Service)\n/target_manager/save_points (Service)
+ExtensionUI --> PointsYaml : Git Commit / History 読み込み
+Follower --> [RViz2 (Debug)] : /debug/lookahead_point (Marker)
+
+@enduml
