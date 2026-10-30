@@ -1,0 +1,87 @@
+@startuml SystemStateMachine
+title ロボット統合システム状態遷移図 (System State Machine)
+skinparam state {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+  FontSize 12
+  ArrowColor #1565C0
+}
+skinparam defaultTextAlignment center
+
+[*] --> Booting : 制御系電源投入 (LPMB起動)
+
+state Booting {
+  state "OS / ROS 2 起動" as ROSInit
+  state "センサ・LiDAR 初期化" as SensorInit
+  state "Mainboard 通信確立 (UDP)" as CommInit
+  
+  ROSInit --> SensorInit
+  SensorInit --> CommInit
+}
+
+Booting --> ManualStandby : UDP健全 & 各ノード初期化完了
+
+state ManualStandby {
+  state "手動操縦待機 (Standby)" as S_Standby
+  state "自己位置収束中 (Localizing)" as S_Localizing
+  
+  S_Standby --> S_Localizing : 点群マッチング開始
+  S_Localizing --> S_Standby : 収束不十分
+}
+
+ManualStandby --> AutoReady : 自己位置推定 Status == GOOD\nかつ 安全監視 OK
+
+state AutoReady {
+  state "自動待機 (Ready)" as S_Ready
+  note right of S_Ready
+    - 水平/旋回: 手動可能 / コマンド待機
+    - 投擲ポイントDB照合可能
+    - 移動バケツ追従照準準備完了
+  end note
+}
+
+AutoReady --> AutoMoving : メイン基板から自動移動要求\n(NavigationCommand::Move)
+AutoReady --> AutoTracking : 移動バケツ追従要求\n(TargetId::MovingBucket)
+AutoReady --> ManualStandby : 手動介入 / 自己位置精度低下
+
+state AutoMoving {
+  state "大域経路生成 (A* Planner)" as PlanPath
+  state "Pure Pursuit 追従走行" as FollowPath
+  state "終端P制御 (精密度接近)" as EndApproach
+  state "位置決め完了 (Goal)" as Arrived
+  
+  PlanPath --> FollowPath : 経路計画成功
+  FollowPath --> EndApproach : 目標残距離 < 0.15m
+  EndApproach --> Arrived : 目標残距離 <= 0.03m (3cm以内)
+}
+
+AutoMoving --> AutoReady : 移動キャンセル または 到着後待機移行
+AutoMoving --> SystemFail : 障害物急接近 / 通信途絶 / 自己位置ロスト
+
+state AutoTracking {
+  state "CUDA バケツ認識" as DetectBucket
+  state "方位角算出 & 旋回P制御" as HeadingAlign
+  state "射出パラメータ動的補正" as CalcLauncher
+  
+  DetectBucket --> HeadingAlign : 信頼度閾値以上
+  HeadingAlign --> CalcLauncher
+}
+
+AutoTracking --> AutoReady : 追従コマンド解除
+AutoTracking --> SystemFail : 連続フレーム未検出 / 範囲外逸脱
+
+state SystemFail {
+  state "フェールセーフ停止" as EmergencyStop
+  note right of EmergencyStop
+    - 速度指令 cmd_vel = 0
+    - 全アクチュエータ停止要求
+    - 手動操縦へ強制フォールバック
+  end note
+}
+
+SystemFail --> ManualStandby : エラー解除 / 手動復帰コマンド
+AutoMoving --> [*] : 非常停止 (EMS遮断)
+AutoReady --> [*] : 非常停止 (EMS遮断)
+ManualStandby --> [*] : 非常停止 (EMS遮断)
+
+@enduml

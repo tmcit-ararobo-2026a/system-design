@@ -1,0 +1,92 @@
+@startuml ROS2SystemArchitecture
+title ROS 2 ソフトウェア制御系統アーキテクチャ図 (ROS 2 Software Architecture)
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+
+package "センサ・ドライバ層 (Sensors & Drivers)" #ECEFF1 {
+  [livox_ros_driver2] as LivoxDriver
+  [lakibeam1_scan_node] as LakiDriver
+  [cloth_tracker_cuda_node\n(RealSense D435/D455)] as ClothTracker
+}
+
+package "自己位置推定・点群処理層 (Localization & PointCloud)" #E3F2FD {
+  [gn10_pointcloud_localization_node\n(CUDA ESDF 3D Matching)] as Localizer
+  [localization_status_monitor_node\n(Freshness & Quality Gate)] as LocMonitor
+}
+
+package "環境認識・追従認識層 (Perception & Tracking)" #E0F2F1 {
+  [moving_bucket_detector\n(CUDA Grid Clustering)] as BucketDetector
+  [track_freshness_guard_node\n(Time Guard Filter)] as BucketGuard
+  [opponent_tracker_node\n(Dynamic Obstacle Tracker)] as OpponentTracker
+}
+
+package "ナビゲーション制御層 (gn10-navigation)" #FFF9C4 {
+  [costmap_generator_node\n(Multi-Source BFS)] as CostmapGen
+  [path_planner_node\n(8-Direction A*)] as PathPlanner
+  [path_follower_node\n(Pure Pursuit + End-P Control)] as PathFollower
+  [target_manager_node\n(Shooting Pose DB)] as TargetMgr
+}
+
+package "自律制御調停・安全層 (Auto Mode & Safety)" #FFE0B2 {
+  [auto_mode_manager_node\n(System State Machine)] as AutoManager
+  [navigation_safety_monitor\n(Collision & Staleness Monitor)] as SafetyMonitor
+}
+
+package "射出・チューニング支援層 (Shot Manager & Tuning)" #F3E5F5 {
+  [gn10_shot_manager\n(GUI / Recorder / Editor)] as ShotMgr
+}
+
+package "通信ブリッジ層 (Hardware Bridge)" #FFEBEE {
+  [udp_node\n(robot_port: Jetson <-> Mainboard)] as UDPNode
+}
+
+' --- センサデータフロー ---
+LivoxDriver --> Localizer : /livox/lidar (PointCloud2)\n/livox/imu (Imu)
+LivoxDriver --> BucketDetector : /livox/lidar (PointCloud2)
+LakiDriver ..> Localizer : /lakibeam/scan (LaserScan)
+
+' --- 自己位置推定 ---
+Localizer --> LocMonitor : /localization/status_raw
+LocMonitor --> AutoManager : /localization/status
+Localizer --> PathPlanner : TF: map -> base_link
+Localizer --> PathFollower : TF: map -> base_link
+Localizer --> OpponentTracker : /dynamic_cloud (PointCloud2)
+Localizer --> CostmapGen : /obstacle_cloud (PointCloud2)
+Localizer --> SafetyMonitor : /obstacle_cloud (PointCloud2)
+
+' --- 認識フロー ---
+BucketDetector --> BucketGuard : /moving_bucket_detector/target_raw
+BucketGuard --> AutoManager : /moving_bucket_detector/target
+BucketGuard --> PathFollower : TF: map -> bucket_bottom (Optional)
+OpponentTracker --> AutoManager : /opponent_robot/pose (PoseStamped)
+
+' --- ナビゲーションデータフロー ---
+CostmapGen --> PathPlanner : /costmap (OccupancyGrid)
+CostmapGen --> SafetyMonitor : /costmap (OccupancyGrid)
+TargetMgr --> PathPlanner : /goal_pose (PoseStamped)
+
+PathPlanner --> AutoManager : /navigation/compute_path (Service)
+PathPlanner --> PathFollower : /planned_path (Path, Legacy)
+
+AutoManager --> PathFollower : /navigation/follow_path (Action)
+AutoManager --> PathFollower : /navigation/control_lease (ControlLease)
+PathFollower --> AutoManager : /navigation/path_velocity (PathVelocity)
+PathFollower --> UDPNode : /robot/operation/cmd_vel (Twist)
+
+' --- 安全監視 ---
+SafetyMonitor --> AutoManager : /auto_mode/safety (SafetyState)
+
+' --- 射出・布追跡 ---
+ClothTracker --> ShotMgr : /cloth/position (PointStamped)\n/cloth/measured_path (Path)
+TargetMgr <--> ShotMgr : /target_manager/update_point (Service)\n/target_manager/save_points (Service)
+
+' --- 通信ブリッジ ---
+AutoManager --> UDPNode : /robot/operation (RobotOperation)
+UDPNode --> AutoManager : /robot/feedback (RobotFeedback)\n/robot/communication_status (BridgeHealth)
+UDPNode --> TargetMgr : /robot/target_id (UInt8)\n/robot/navigation_command (UInt8)
+UDPNode --> PathFollower : /robot/target_id (UInt8)\n/robot/navigation_command (UInt8)
+
+@enduml

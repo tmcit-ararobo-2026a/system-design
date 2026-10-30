@@ -1,0 +1,111 @@
+@startuml CommunicationArchitecture
+title 通信系統統合アーキテクチャ図 (Communication Architecture)
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+
+legend top left
+  |<back:#212121>   </back> 実線 | 100/1000BASE-T Ethernet (L2 Switch経由) |
+  |<back:#1E88E5>   </back> 実線 | CAN1 (周辺機器・空圧・サーボ・LED) |
+  |<back:#FB8C00>   </back> 実線 | CAN2 (システム電源管理・テレメトリ・EMS監視) |
+  |<back:#8E24AA>   </back> 実線 | CAN3 (大電力ESC駆動系: アイソレータ経由) |
+  |<back:#00897B>   </back> 点線 | USB 3.0 超高速シリアル通信 |
+  |<back:#E53935>   </back> 点線 | ハードウェア非常停止 (EMS) 遮断信号 |
+endlegend
+
+package "計算・認識層 (Jetson Orin)" #E3F2FD {
+  component [Jetson Orin\n(ROS 2 Humble / Linux)] as Jetson
+  portin "ETH" as Jetson_ETH
+  portin "CAN" as Jetson_CAN2
+  portin "USB" as Jetson_USB
+}
+
+package "メイン制御層 (Mainboard)" #FFF9C4 {
+  component [Mainboard\n(STM32 / リアルタイムOS)] as Mainboard
+  portin "ETH" as Main_ETH
+  portin "CAN1" as Main_CAN1
+  portin "CAN2" as Main_CAN2
+  portin "CAN3" as Main_CAN3
+}
+
+package "Ethernet ネットワーク層" #ECEFF1 {
+  component [ギガビット L2 スイッチングハブ] as L2SW
+  component [Livox MID-360S\n(3D LiDAR + 6軸IMU)] as MID360S
+  component [開発・モニタリングPC\n(RViz2 / デバッグ用)] as HostPC
+}
+
+package "視覚センサ層" #E0F2F1 {
+  component [Intel RealSense D435/D455\n(RGB-D カメラ)] as RealSense
+}
+
+package "CAN1: 周辺・補機・空圧系統 (1Mbps)" #FFFDE7 {
+  component [TrinityDeviceController\n(24V昇圧 / 電磁弁駆動)] as Trinity24V
+  component [AirRegulatorControlBoard\n(電空レギュレータ制御)] as ARCB
+  component [HTMD v2.2c\n(DCモータドライバ)] as HTMD
+  component [KNI-Servo\n(RCサーボ分配基板)] as KNIServo
+  component [KNI-Servo-LED\n(状態表示LED制御基板)] as KNILED
+}
+
+package "CAN2: 電源監視・EMSテレメトリ系統 (500kbps)" #FFF3E0 {
+  component [VoltageConvertorBoard\n(DC/DCコンバータ)] as VConv
+  component [PowerManagementBoard\n(電源監視・FET遮断)] as PMB
+  component [RemoteEMSBoard\n(遠隔EMS受信基板)] as RemoteEMS
+}
+
+package "CAN3: モータ駆動・ESC系統 (1Mbps / フォトカプラ絶縁)" #F3E5F5 {
+  component [C620 ESCHub\n(足回りモータ用)] as C620Hub
+  component [C610 ESCHub\n(装填・アーム用)] as C610Hub
+  component [VESC ESCHub\n(射出用BLDC)] as VESCHub
+
+  component [3x C620 ESC\n(オムニ足回り M3508)] as C620_Drivers
+  component [4x C610 ESC\n(装填・アーム M2006)] as C610_Drivers
+  component [1x VESC\n(射出ベルト直動 NEO)] as VESC_Driver
+}
+
+package "安全保護系統 (ハードウェア非常停止)" #FFEBEE {
+  component [機体物理 EMS スイッチ] as HW_EMS
+  component [ワイヤレス非常停止受信機] as Wireless_EMS
+}
+
+' --- Ethernet 接続 ---
+L2SW -[#212121]- Jetson_ETH : UDP (RobotOperation/Feedback)
+L2SW -[#212121]- Main_ETH : UDP (100Hz リアルタイム)
+L2SW -[#212121]- MID360S : 点群・IMUパケット (UDP)
+L2SW -[#212121].. HostPC : ROS 2 通信 (DDS / Wi-Fiまたは有線)
+
+' --- USB 接続 ---
+RealSense -[#00897B].. Jetson_USB : USB 3.0 (RGB/Depth点群)
+
+' --- CAN1 接続 ---
+Main_CAN1 -[#1E88E5]- Trinity24V
+Trinity24V -[#1E88E5]- HTMD
+HTMD -[#1E88E5]- KNIServo
+KNIServo -[#1E88E5]- KNILED
+Trinity24V -[#1E88E5]- ARCB
+
+' --- CAN2 接続 ---
+Main_CAN2 -[#FB8C00]- Jetson_CAN2
+Jetson_CAN2 -[#FB8C00]- VConv
+VConv -[#FB8C00]- PMB
+PMB -[#FB8C00]- RemoteEMS
+
+' --- CAN3 接続 (絶縁) ---
+Main_CAN3 -[#8E24AA]- C620Hub
+C620Hub -[#8E24AA]- C610Hub
+C610Hub -[#8E24AA]- VESCHub
+
+C620Hub -[#8E24AA]- C620_Drivers : CAN (絶縁バス)
+C610Hub -[#8E24AA]- C610_Drivers : CAN (絶縁バス)
+VESCHub -[#8E24AA]- VESC_Driver : CAN (絶縁バス)
+
+' --- 非常停止ハード配線 ---
+HW_EMS .[#E53935].> PMB : 物理B接点ライン
+Wireless_EMS .[#E53935].> RemoteEMS : 無線EMS信号
+RemoteEMS .[#E53935].> PMB : 遮断指示ライン
+PMB .[#E53935].> C620_Drivers : パワーFET遮断 (5S電源)
+PMB .[#E53935].> C610_Drivers : パワーFET遮断 (5S電源)
+PMB .[#E53935].> VESC_Driver : パワーFET遮断 (5S電源)
+
+@enduml
