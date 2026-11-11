@@ -1,6 +1,6 @@
 @startuml PowerWiringDiagram_v5_Power
 
-title 電源系統図 v5 (Power)
+title Power Distribution Diagram
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FFFFFF
@@ -20,31 +20,31 @@ skinparam shadowing false
 scale max 4960*3508
 
 legend top left
-  |<back:#E53935>   </back> 5S駆動 (18.5〜21V) |
-  |<back:#FB8C00>   </back> 4S直系 (14.8〜16.8V) |
-  |<back:#FDD835>   </back> 3S直系 (11.1〜12.6V) |
-  |<back:#6D4C41>   </back> 外部AC/DC入力 (19V) |
-  |<back:#00897B>   </back> LPMB出力 無停電統合バス (11.1〜16.8V可変) |
-  |<back:#43A047>   </back> 24V (TrinityDeviceController出力) |
-  |<back:#C0CA33>   </back> 12V (VoltageCovertorBoard出力) |
-  |<back:#8E24AA>   </back> 5V (KNI-Servo / KNI-Servo-LED出力) |
-  |<back:#D81B60>   </back> 可変電圧アナログ信号 |
-  |<back:#B0BEC5>   </back> 空気圧配管 (非電気) |
-  CAN/信号系統は別図「CAN/信号系統図」を参照
+  |<back:#E53935>   </back> 5S Drive Power (18.5–21V) |
+  |<back:#FB8C00>   </back> 5S Logic Power A (18.5–21V) |
+  |<back:#FDD835>   </back> 5S Logic Power B (18.5–21V) |
+  |<back:#6D4C41>   </back> External AC/DC Input (19V) |
+  |<back:#00897B>   </back> LPMB UPS Bus Output (11.1–16.8V Variable) |
+  |<back:#43A047>   </back> 24V Output (Trinity Device Controller) |
+  |<back:#C0CA33>   </back> 12V Output (Voltage Converter Board) |
+  |<back:#8E24AA>   </back> 5V Output (USB / Servo Driver) |
+  |<back:#D81B60>   </back> Analog Signal (Variable Voltage) |
+  |<back:#B0BEC5>   </back> Pneumatic Piping (Non-Electrical) |
+  Refer to CAN/Signal Diagram for signal lines
 endlegend
 
-package "バッテリー" {
-  component "Lipo 5S" as Lipo5S
-  component "Lipo 4S" as Lipo4S
-  component "Lipo 3S" as Lipo3S
-  component "外部AC/DCコンバータ\n19V" as External_DC
+package "Power Sources" {
+  component "LiPo 5S (Drive)" as Lipo5S
+  component "LiPo 5S (Logic A)" as Lipo5S1
+  component "LiPo 5S (Logic B)" as Lipo5S2
+  component "External AC/DC\n19V" as External_DC
 }
 
-package "駆動系 電源ライン (5S)" #EAF3FF {
-  component "Fuse 30A" as Fuse30A
-  component "VoltageMeter 5S" as VMeter5S
-  component "PowerManagementBoard" as PMB
-  component "PowerDistributionBoard\n(大容量C搭載)" as PDB
+package "Drive Power Stage" #EAF3FF {
+  component "Fuse (30A)" as Fuse30A
+  component "Voltage Meter (5S)" as VMeter5S
+  component "Power Management Board\n(PMB)" as PMB
+  component "Power Distribution Board\n(PDB / High Capacitance)" as PDB
 }
 
 Lipo5S -[#E53935]-> Fuse30A
@@ -52,135 +52,88 @@ Fuse30A -[#E53935]-> VMeter5S
 VMeter5S -[#E53935]-> PMB
 PMB -[#E53935]-> PDB
 
-package "制御系 電源ライン (4S/3S/外部)" #f0f6e7 {
-  component "Fuse 10A (4S)" as Fuse10A_4S
-  component "Fuse 10A (3S)" as Fuse10A_3S
-  component "LogicPowerManagementBoard\n(無停電)" as LPMB
+package "Logic Power Stage" #F0F6E7 {
+  component "Fuse (10A)" as Fuse10A1
+  component "Fuse (10A)" as Fuse10A2
+  component "Logic Power Management Board\n(LPMB / UPS)" as LPMB
 }
 
-Lipo4S -[#FB8C00]-> Fuse10A_4S
-Fuse10A_4S -[#FB8C00]-> LPMB
-Lipo3S -[#FDD835]-> Fuse10A_3S
-Fuse10A_3S -[#FDD835]-> LPMB
+Lipo5S1 -[#FB8C00]-> Fuse10A1
+Fuse10A1 -[#FB8C00]-> LPMB
+Lipo5S2 -[#FDD835]-> Fuse10A2
+Fuse10A2 -[#FDD835]-> LPMB
 External_DC -[#6D4C41]-> LPMB
 
-package "制御中枢" #EDE7F6 {
+package "Main Compute & Sensors" #EDE7F6 {
   component Jetson
-  component Mainboard
-  component "VoltageCovertorBoard" as VConv
-  component "MID-360S\n(LiDAR)" as MID360S
-  component "L2スイッチ" as L2SW
+  component "Mainboard" as Mainboard
+  component "MID-360S\n(3D LiDAR)" as MID360S
+  component "Lakibeam 1\n(2D LiDAR)" as Lakibeam1
+  component "L2 Switch" as L2SW
 }
 
 LPMB -[#00897B]-> Jetson
 LPMB -[#00897B]-> Mainboard
-LPMB -[#00897B]-> VConv
-VConv -[#C0CA33]-> MID360S : 12V
-VConv -[#8E24AA]-> L2SW : 5V
+LPMB -[#00897B]-> MID360S
+LPMB -[#00897B]-> Lakibeam1
+Jetson -[#8E24AA]-> L2SW : USB 5V
 
-package "足回り (ホイール)" {
-  component "XT60→XT30\n(Front)" as XT_F
-  component "XT60→XT30\n(Left)" as XT_L
-  component "XT60→XT30\n(Right)" as XT_R
+package "Drivetrain" {
   component "C620 (Front)" as C620_F
   component "C620 (Left)" as C620_L
   component "C620 (Right)" as C620_R
-  component "ホイール M3508\n(Front)" as Wheel_F
-  component "ホイール M3508\n(Left)" as Wheel_L
-  component "ホイール M3508\n(Right)" as Wheel_R
+  component "M3508 (Front)" as Wheel_F
+  component "M3508 (Left)" as Wheel_L
+  component "M3508 (Right)" as Wheel_R
 }
 
-PDB -[#E53935]-> XT_F
-XT_F -[#E53935]-> C620_F
+PDB -[#E53935]-> C620_F
 C620_F -[#E53935]-> Wheel_F
-PDB -[#E53935]-> XT_L
-XT_L -[#E53935]-> C620_L
+PDB -[#E53935]-> C620_L
 C620_L -[#E53935]-> Wheel_L
-PDB -[#E53935]-> XT_R
-XT_R -[#E53935]-> C620_R
+PDB -[#E53935]-> C620_R
 C620_R -[#E53935]-> Wheel_R
 
-package "ベルト直動" {
-  component VESC
+package "Belt Launcher" {
+  component "Capacitor Array" as C_Arr2
+  component "VESC" as VESC
   component "BLDC-NEO" as BLDC_NEO
 }
 
-PDB -[#E53935]-> VESC
+PDB -[#E53935]-> C_Arr2
+C_Arr2 -[#E53935]-> VESC
 VESC -[#E53935]-> BLDC_NEO
 
-package "バケツアーム系" {
-  component "BucketArmHoldC610" as BAH_C610
-  component "BucketArmHold M2006" as BAH_M2006
-  component "HTMD v2.2c" as HTMD
-  component "BucketArmHight\nMS-385PH" as BAHeight
+package "Mechanisms & Actuators" {
+  component "C610 x4" as C610
+  component "M2006 x4" as M2006
+  component "HTMD v2.2c\n(Motor Driver)" as HTMD
+  component "RS385\n(DC Motor)" as RS385
 }
 
-PDB -[#E53935]-> BAH_C610
-BAH_C610 -[#E53935]-> BAH_M2006
+PDB -[#E53935]-> C610
+C610 -[#E53935]-> M2006
 PDB -[#E53935]-> HTMD
-HTMD -[#E53935]-> BAHeight
+HTMD -[#E53935]-> RS385
 
-package "装填系" {
-  component "LoadingShiftC610" as LS_C610
-  component "LoadingShift M2006" as LS_M2006
-  component "LoadingRotateC610" as LR_C610
-  component "LoadingRotate M2006" as LR_M2006
+package "Status Indicators" {
+  component "KNI-Servo" as KNI_LED
+  component "LED" as LED
 }
 
-PDB -[#E53935]-> LS_C610
-LS_C610 -[#E53935]-> LS_M2006
-PDB -[#E53935]-> LR_C610
-LR_C610 -[#E53935]-> LR_M2006
-
-package "机用アーム系" {
-  component "DeskArmC610" as DA_C610
-  component "DeskArmHookPos M2006" as DA_M2006
-  component "KNI-Servo" as KNI_Servo
-  component "DeskArmHold MG996R" as DA_Servo
-  component "KNI-Servo-LED" as KNI_LED
-  component "LED\nBeltVel" as LED_Belt
-  component "LED\nAirLauncherSelect" as LED_AirSel
-  component "LED\nRobotState" as LED_State
-  component "LED\nTargetRollAngle" as LED_Roll
-}
-
-PDB -[#E53935]-> DA_C610
-DA_C610 -[#E53935]-> DA_M2006
-PDB -[#E53935]-> KNI_Servo
-KNI_Servo -[#8E24AA]-> DA_Servo
 PDB -[#E53935]-> KNI_LED
-KNI_LED -[#8E24AA]-> LED_Belt
-KNI_LED -[#8E24AA]-> LED_AirSel
-KNI_LED -[#8E24AA]-> LED_State
-KNI_LED -[#8E24AA]-> LED_Roll
+KNI_LED -[#8E24AA]-> LED
 
-package "空圧系統" #E8F5E9 {
-  component "TrinityDeviceController\n24V" as Trinity24V
-  component ToggleSW
-  component "AirRegulatorControlBoard" as ARCB
-  component "AirRegulator" as AirReg
-  component "AirLauncher\n(旗)" as Air_Flag
-  component "AirLauncher\n(机1)" as Air_Desk1
-  component "AirLauncher\n(机2)" as Air_Desk2
+package "Pneumatic System" #E8F5E9 {
+  component "Trinity Device Controller\n(24V)" as Trinity24V
+  component "Air Regulator" as AirReg
+  component "Air Launcher 1" as Air_Desk1
+  component "Air Launcher 2" as Air_Desk2
 }
 
 PDB -[#E53935]-> Trinity24V
-Trinity24V -[#43A047]-> Air_Flag : 電磁弁
-Trinity24V -[#43A047]-> Air_Desk1 : 電磁弁
-Trinity24V -[#43A047]-> Air_Desk2 : 電磁弁
-Trinity24V -[#43A047]-> ARCB : 24V
-ARCB -[#D81B60]-> ToggleSW : 電圧可変信号
-ToggleSW -[#D81B60]-> AirReg : 電圧可変信号
-AirReg -[#B0BEC5]-> Air_Flag : 空気圧調整
-
-package "ESC Hub 群" #FCE4EC {
-  component "C620 ESCHub" as C620Hub
-  component "C610 ESCHub" as C610Hub
-  component "VESC ESCHub" as VESCHub
-}
-
-PDB -[#E53935]-> C620Hub
-PDB -[#E53935]-> C610Hub
-PDB -[#E53935]-> VESCHub
+Trinity24V -[#43A047]-> Air_Desk1 : Solenoid Valve
+Trinity24V -[#43A047]-> Air_Desk2 : Solenoid Valve
+Trinity24V -[#43A047]-> AirReg : 24V
 
 @enduml
