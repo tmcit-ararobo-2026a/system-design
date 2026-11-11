@@ -1,0 +1,99 @@
+@startuml control routing architecture
+
+title Robust Control Routing Architecture\nKernel Routing (Manual) & Autonomous Switchover
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam defaultTextAlignment center
+skinparam shadowing false
+scale max 4000*2500
+
+skinparam component {
+  BackgroundColor #F8F9FA
+  BorderColor #444444
+  FontSize 12
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #90A4AE
+  FontSize 13
+  FontStyle bold
+}
+
+skinparam ArrowFontSize 11
+
+legend top left
+  |<back:#2E7D32>   </back> High-Reliability Manual Flow (Bypasses User Space via Kernel Routing) |
+  |<back:#1976D2>   </back> Autonomous Control Flow (User Space / ROS 2 Processing) |
+  |<back:#C2185B>   </back> Internal Ethernet (Arbitration & Feedback to Actuators) |
+endlegend
+
+' --- Controller Side ---
+package "Operator Interface" #E8F5E9 {
+  component "Custom Controller\n(STM32G4 + W5500)" as Controller #C8E6C9
+}
+
+' --- Jetson Layer ---
+package "Host Computer (Jetson)" #EDE7F6 {
+  component "Wi-Fi 6E (6GHz)\nWireless Interface" as WifiInterface #D1C4E9
+
+  package "OS Kernel Space (Hardware-Level Forwarding)" #E0F2F1 {
+    component "**Linux Kernel**\nIP Routing / Forwarding\n[Zero-Wait & Crash Immune]" as KernelRoute #80CBC4
+  }
+
+  package "User Space (Heavy Applications)" #FFF3E0 {
+    component "**ROS 2 System**\n[Autonomous Stack]\n*High CPU / Heavy Build Load*" as ROS2 #FFE0B2
+  }
+
+  component "Ethernet Port\n(Physical NIC)" as JetsonEth #D1C4E9
+}
+
+' --- Network Switch ---
+component "L2 Ethernet Switch" as L2SW #ECEFF1
+
+' --- Mainboard (Arbiter) ---
+package "Master Control System" #E3F2FD {
+  component "**GN10 Mainboard**\n[Master Arbiter & Fail-Safe Core]\n\n• Safety Interlock Monitoring\n• Seamless Auto/Manual Multiplexer\n• Actuator Protocol Conversion" as Mainboard #BBDEFB
+}
+
+' --- Actuators ---
+package "Actuator Domain (CAN)" #F5F5F5 {
+  component "Drivetrain & Mechanism ESCs\n(C620 / C610 / VESC)" as ESCs
+}
+
+' --- Connections: Manual Path (Direct Kernel Routing) ---
+Controller -[#2E7D32,bold]-> WifiInterface : **Manual Teleop Packets**\n(Wi-Fi 6E / 6GHz)
+WifiInterface -[#2E7D32,bold]-> KernelRoute : Raw Packets
+
+' Kernel passes straight through NIC without touching User Space
+KernelRoute -[#2E7D32,bold]-> JetsonEth : **Fast L3 IP Forwarding**\n(No App / Script Dependency)
+
+' Packet inspection for ROS2 autonomous tasks
+KernelRoute .[#1976D2]-> ROS2 : State & Telemetry
+
+' --- Connections: Autonomous Path ---
+ROS2 -[#1976D2,dashed]-> JetsonEth : **Autonomous Cmd**\n(Ethernet / ROS2 Nodes)
+
+' --- Network to Mainboard ---
+JetsonEth -[#212121]-> L2SW : Multiplexed IP Traffic
+L2SW -[#2E7D32,bold]-> Mainboard : **Direct Manual Cmd**
+L2SW -[#1976D2,dashed]-> Mainboard : **Autonomous Cmd**
+
+' --- Mainboard Arbitration to Actuators ---
+Mainboard -[#C2185B,bold]-> ESCs : Final Output (CAN Bus)\n[Switched by Safety & Controller Priority]
+
+note right of KernelRoute
+  <b>Key Reliability Point:</b>
+  Manual packets bypass User Space entirely.
+  Even if ROS 2 crashes or freezes under 100% build load,
+  manual control keeps operating with zero packet loss.
+endnote
+
+note right of Mainboard
+  <b>Arbitration Logic:</b>
+  • Controller overrides autonomous command instantly.
+  • Heartbeat & safety validation executed in hardware/MCU.
+endnote
+
+@enduml
