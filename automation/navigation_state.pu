@@ -1,29 +1,46 @@
-@startuml
+@startuml navigation state diagram
+
+title Navigation State Machine (gn10_navigation)
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultTextAlignment left
+skinparam shadowing false
+scale max 4000*2500
+
 skinparam state {
-  BackgroundColor White
-  BorderColor Black
-  ArrowColor Black
+  BackgroundColor #F8F9FA
+  BorderColor #444444
+  FontSize 12
+  ArrowColor #212121
+  ArrowFontSize 11
+  StartColor #2E7D32
+  EndColor #C62828
 }
 
-[*] --> Standby : ノード起動
+[*] --> Standby : Node Initialization
 
-Standby --> Ready : 自己位置推定成功
-Ready --> Moving : 自動移動命令 (NavigationCommand::Move)
-Moving --> Fail : 自己位置推定/通信エラー、危険領域侵入、タイムアウト
-Moving --> Goal : 目標地点に到着 (残距離 <= 3cm)
-Moving --> Ready : 移動キャンセル (NavigationCommand::Stanby)
-Goal --> Ready : 目標地点の誤差範囲外へ移動
-Ready --> Tracking : 移動バケツ追従命令 (TargetId::MovingBucket＆NavigationCommand::Move)
-Tracking --> Fail : 移動バケツ認識不可 / 範囲外
-Tracking --> Ready : 追従命令解除 (NavigationCommand::Stanby)
-Ready --> Fail : 自動移動不可能状態
-Fail --> Ready : エラー状態からの復帰(危険領域からの抜け出し、自己位置推定回復など)
+Standby --> Ready : Localization Established
+Ready --> Moving : Autonomous Move Command (NavigationCommand::Move)
+Moving --> Fail : Localization / Comm Loss, Hazard Zone Entry, Timeout
+Moving --> Goal : Reached Target Position (Residual Distance <= 3 cm)
+Moving --> Ready : Move Canceled (NavigationCommand::Standby)
+Goal --> Ready : Position Drift Exceeds Tolerance Margin
+Ready --> Tracking : Target Tracking Command (TargetId::MovingBucket & Move)
+Tracking --> Fail : Target Lost / Out of Trackable Range
+Tracking --> Ready : Tracking Canceled (NavigationCommand::Standby)
+Ready --> Fail : Autonomous Move Disabled
+Fail --> Ready : Error Recovery (Localization Restored / Zone Cleared)
 
-Standby : 処理: 待機状態 (NavigationStatus::Stanby)
-Ready : 処理: 移動・回転命令受領可能 (NavigationStatus::Ready)
-Moving : 処理: Pure Pursuit + 終端15cm位置偏差FB制御 (NavigationStatus::Moving)
-Goal : 処理: 目標位置3cm以内達成・停止 (NavigationStatus::Goal)
-Tracking : 処理: 移動バケツ方向への旋回制御のみ (NavigationStatus::Tracking)
-Fail : 処理: エラー出力 (NavigationStatus::Fail)
+Standby : <b>Processing: Idle Standby</b>\n• State Output: NavigationStatus::Standby\n• Waiting for Localization & Map Synchronization
 
-@endluml
+Ready : <b>Processing: Armed & Ready</b>\n• State Output: NavigationStatus::Ready\n• Ready to Accept Target Navigation & Tracking Commands
+
+Moving : <b>Processing: Two-Stage Motion Control</b>\n• High-Speed Phase: Pure Pursuit (Lookahead = 0.4 m)\n• Fine Terminal Phase: Position Feedback (Residual <= 0.15 m)\n• State Output: NavigationStatus::Moving
+
+Goal : <b>Processing: Target Position Reached</b>\n• Precision Stop: Residual Distance <= 3 cm Satisfied\n• State Output: NavigationStatus::Goal
+
+Tracking : <b>Processing: Heading Alignment</b>\n• Continuous Yaw Rotation Facing Moving Bucket\n• State Output: NavigationStatus::Tracking
+
+Fail : <b>Processing: Safety Stop & Diagnostic Reporting</b>\n• State Output: NavigationStatus::Fail\n• Automatic Motion Inhibited
+
+@enduml

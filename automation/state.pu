@@ -1,34 +1,46 @@
 @startuml state machine diagram
 
-[*] --> Standby : 制御系統電源投入
-Standby --> Ready : 通信・自己位置推定成功
-Ready --> Moving : 自動移動命令
-Moving --> Fail : 自己位置推定や通信のエラー、危険領域への侵入
-Moving --> Goal : 目標地点に到着し誤差範囲内
-Moving --> Ready : 移動のキャンセル
-Goal --> Ready : 目標地点の誤差範囲内から出た
-Ready --> Tracking : 移動バケツ追従司令がある
-Tracking --> Fail : 移動バケツが見つからない・範囲外
-Tracking --> Ready : 移動バケツ追従司令が切れた
-Ready --> Fail : 自動移動不可能
-Fail --> Ready : 危険状態からの復帰
+title Autonomous & Manual Operation State Machine
 
-Standby : 手動操縦モード
-Ready : 水平・回転移動：手動
-Ready : ベルト直動射出：手動
-Ready : ベルト直動威力：手動
-Ready : ハンド操作：不可
-Moving : 水平・回転移動：自動
-Moving : ベルト直動射出：手動
-Moving : ベルト直動威力：自動
-Moving : ハンド操作：不可
-Goal : 水平・回転移動：手動
-Goal : ベルト直動射出：手動
-Goal : ベルト直動威力：手動
-Goal : ハンド操作：不可
-Tracking : 水平移動：手動
-Tracking : 回転移動：自動
-Tracking : ベルト直動射出：手動
-Tracking : ベルト直動威力：自動
-Tracking : ハンド操作：不可
-Fail : 手動操縦モード
+skinparam backgroundColor #FFFFFF
+skinparam defaultTextAlignment left
+skinparam shadowing false
+scale max 4000*2500
+
+skinparam state {
+  BackgroundColor #F8F9FA
+  BorderColor #444444
+  FontSize 12
+  ArrowColor #212121
+  ArrowFontSize 11
+  StartColor #2E7D32
+  EndColor #C62828
+}
+
+[*] --> Standby : Control System Power ON
+
+Standby --> Ready : Communication & Localization Established
+Ready --> Moving : Autonomous Move Command (NavigationCommand::Move)
+Moving --> Fail : Localization/Comm Error, Danger Zone Violation, Timeout
+Moving --> Goal : Target Arrived (Residual Error <= 3 cm)
+Moving --> Ready : Move Canceled (NavigationCommand::Standby)
+Goal --> Ready : Robot Deviated from Goal Tolerance Area
+Ready --> Tracking : Moving Bucket Tracking Active (TargetId::MovingBucket & Move)
+Tracking --> Fail : Target Lost / Out of Trackable Range
+Tracking --> Ready : Tracking Command Released (NavigationCommand::Standby)
+Ready --> Fail : Autonomous Move Disabled
+Fail --> Ready : Error Cleared & Localization Restored
+
+Standby : <b>Mode: Manual Teleoperation</b>\n• Drive (Translation & Rotation): Manual\n• Launcher Trigger: Manual\n• Launcher Velocity: Manual\n• Gripper Mechanism: Enabled (Manual)
+
+Ready : <b>Mode: Standby / Armed (Localization OK)</b>\n• Drive (Translation & Rotation): Manual\n• Launcher Trigger: Manual\n• Launcher Velocity: Manual\n• Gripper Mechanism: Disabled
+
+Moving : <b>Mode: Autonomous Navigation Active</b>\n• Drive (Translation & Rotation): Autonomous (Pure Pursuit + P-Control)\n• Launcher Trigger: Manual\n• Launcher Velocity: Autonomous (Target Distance FB)\n• Gripper Mechanism: Disabled
+
+Goal : <b>Mode: Goal Position Reached (< 3cm Tolerance)</b>\n• Drive (Translation & Rotation): Manual / Hold\n• Launcher Trigger: Manual\n• Launcher Velocity: Manual\n• Gripper Mechanism: Disabled
+
+Tracking : <b>Mode: Moving Bucket Tracking Active</b>\n• Drive Translation: Manual\n• Drive Rotation: Autonomous (Facing Target Bucket)\n• Launcher Trigger: Manual\n• Launcher Velocity: Autonomous (Target Distance FB)\n• Gripper Mechanism: Disabled
+
+Fail : <b>Mode: Safety Fallback</b>\n• Autonomous Execution: Disabled\n• Drive & Actuators: Manual Teleoperation Fallback Only
+
+@enduml

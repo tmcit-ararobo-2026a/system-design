@@ -1,40 +1,81 @@
-@startuml
-skinparam componentStyle uml2
-skinparam packageStyle rectangle
+@startuml navigation node diagram
 
-actor "メインマイコン" as MCU
-actor "開発者 / 調整員" as Developer
+title Navigation Architecture & Toolchain (gn10_navigation)
 
-package "VSCode Extension (IDE)" {
-  [VSCode Extension UI] as ExtensionUI
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam defaultTextAlignment center
+skinparam shadowing false
+scale max 4000*2500
+
+skinparam component {
+  BackgroundColor #F8F9FA
+  BorderColor #444444
+  FontSize 12
 }
 
-package "gn10_navigation (ROS 2)" {
-  [target_manager_node] as TargetManager
-  [costmap_generator_node] as CostmapGen
-  [path_planner_node] as Planner
-  [path_follower_node] as Follower
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #90A4AE
+  FontSize 13
+  FontStyle bold
 }
 
-database "nhk2026_map.json" as MapJson
-database "shooting_points.yaml" as PointsYaml
+skinparam database {
+  BackgroundColor #ECEFF1
+  BorderColor #546E7A
+  FontSize 12
+}
 
-' データの流れ
-MapJson --> CostmapGen : フィールド形状・障害物定義
-PointsYaml <--> TargetManager : 投擲ポイント永続化
+skinparam ArrowFontSize 11
 
-MCU --> TargetManager : /robot/navigation_command (UInt8)\n/robot/target_id (UInt8)
-TargetManager --> Planner : /goal_pose (PoseStamped)
-CostmapGen --> Planner : /costmap (OccupancyGrid)
+legend top left
+  |<back:#1976D2>   </back> Internal Navigation & Path Planning Data |
+  |<back:#E64A19>   </back> Hardware Command & Status Bridge |
+  |<back:#2E7D32>   </back> Parameter Configuration & Toolchain Sync |
+  |<back:#7B1FA2>   </back> Real-Time Visualization & Diagnostics |
+endlegend
 
-Planner --> Follower : /planned_path (Path)
-Follower --> MCU : /robot/operation/navigation_status (UInt8)
-Follower --> MCU : /robot/operation/cmd_vel (Twist)
+' --- External Actors ---
+actor "Main Controller\n(STM32 MCU)" as MCU #BBDEFB
+actor "Developer /\nField Operator" as Developer #C8E6C9
 
-' VSCode Extension との連携
-Developer --> ExtensionUI : 投擲位置 Drag & Drop / 調整
-ExtensionUI --> TargetManager : /target_manager/update_point (Service)\n/target_manager/save_points (Service)
-ExtensionUI --> PointsYaml : Git Commit / History 読み込み
-Follower --> [RViz2 (Debug)] : /debug/lookahead_point (Marker)
+' --- Workstation Toolchain ---
+package "VSCode Extension (IDE Toolchain)" #E8F5E9 {
+  component "VSCode Extension UI\n[Interactive Point Editor]" as ExtensionUI #C8E6C9
+}
+
+' --- Navigation System ---
+package "Navigation System (gn10_navigation)" #E3F2FD {
+  component "Target Manager\n[target_manager_node]" as TargetManager #BBDEFB
+  component "Costmap Generator\n[costmap_generator_node]" as CostmapGen #BBDEFB
+  component "Path Planner (A*)\n[path_planner_node]" as Planner #BBDEFB
+  component "Path Follower (Pure Pursuit)\n[path_follower_node]" as Follower #BBDEFB
+}
+
+' --- Storage & Configurations ---
+database "nhk2026_map.json\n[Field Geometry & Static Obstacles]" as MapJson
+database "shooting_points.yaml\n[Shooting Waypoints & Heading]" as PointsYaml
+
+' --- Visualization ---
+component "RViz2 Visualizer\n[Real-Time Debug]" as RViz #F3E5F5
+
+' --- Configuration Data Flow ---
+MapJson -[#2E7D32]-> CostmapGen : Field Geometry & Obstacle Boundary
+PointsYaml <.[#2E7D32].> TargetManager : Load / Persist Shooting Points
+
+' --- Inter-Process & Hardware Data Flow ---
+MCU -[#E64A19]-> TargetManager : /robot/navigation_command (UInt8)\n/robot/target_id (UInt8)
+TargetManager -[#1976D2]-> Planner : /goal_pose (PoseStamped)
+CostmapGen -[#1976D2]-> Planner : /costmap (OccupancyGrid)
+
+Planner -[#1976D2]-> Follower : /planned_path (Path)
+Follower -[#E64A19]-> MCU : /robot/operation/navigation_status (UInt8)\n/robot/operation/cmd_vel (Twist)
+
+' --- Toolchain Integration ---
+Developer -[#2E7D32]-> ExtensionUI : Drag & Drop Waypoint Tuning
+ExtensionUI -[#2E7D32]-> TargetManager : /target_manager/update_point (Service)\n/target_manager/save_points (Service)
+ExtensionUI .[#2E7D32].> PointsYaml : Git Commit / Version Control Inspection
+Follower -[#7B1FA2]-> RViz : /debug/lookahead_point (Marker)
 
 @enduml

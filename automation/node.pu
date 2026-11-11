@@ -1,69 +1,108 @@
-@startuml ROS2システム
-skinparam componentStyle uml2
-skinparam packageStyle rectangle
+@startuml ros2 node diagram
 
-package "センサ・ドライバ層" {
-  [livox_driver_MID360s] as Livox
-  [realsense_dust_cloth] as RealSense
+title ROS 2 Node Architecture & Inter-Process Communication
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam defaultTextAlignment center
+skinparam shadowing false
+scale max 4000*2500
+
+skinparam component {
+  BackgroundColor #F8F9FA
+  BorderColor #444444
+  FontSize 12
 }
 
-package "gn10-navigation" {
-  [target_manager_node] as TargetMgr
-  [costmap_generator_node] as CostmapGen
-  [path_planner_node] as Planner
-  [path_follower_node] as Follower
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #90A4AE
+  FontSize 13
+  FontStyle bold
 }
 
-package "自己位置・認識層" {
-  [gn10_pointcloud_localization] as Localizer
-  [lidar_perception_system] as Perception
+skinparam ArrowFontSize 11
+skinparam NoteFontSize 11
+skinparam NoteBackgroundColor #FFFDE7
+skinparam NoteBorderColor #BDBDBD
+
+legend top left
+  |<back:#1976D2>   </back> Navigation & Path Planning Commands |
+  |<back:#388E3C>   </back> Sensor Data & TF Coordinate Frames |
+  |<back:#E64A19>   </back> Hardware I/O & UDP Communication |
+  |<back:#7B1FA2>   </back> Vision & Trajectory Analysis |
+endlegend
+
+' --- Sensor & Driver Domain ---
+package "Sensor & Driver Domain" #EDE7F6 {
+  component "Livox MID-360S Driver\n[livox_driver_MID360s]" as Livox #D1C4E9
+  component "RealSense Camera Driver\n[realsense_dust_cloth]" as RealSense #D1C4E9
 }
 
-package "射出・解析系" {
-  [launcher_speed_calculator] as LauncherCalc
-  [雑巾解析node] as ClothAnalyzer
+' --- Localization & Perception Domain ---
+package "Localization & Perception Domain" #E0F2F1 {
+  component "3D LiDAR Localization\n[gn10_pointcloud_localization]" as Localizer #80CBC4
+  component "Dynamic Object Perception\n[lidar_perception_system]" as Perception #80CBC4
 }
 
-package "通信層" {
-  [udp_node] as UDP
+' --- Navigation Domain ---
+package "Navigation Domain (gn10_navigation)" #E3F2FD {
+  component "Target Manager\n[target_manager_node]" as TargetMgr #BBDEFB
+  component "Costmap Generator\n[costmap_generator_node]" as CostmapGen #BBDEFB
+  component "Path Planner (A*)\n[path_planner_node]" as Planner #BBDEFB
+  component "Path Follower (Pure Pursuit + P)\n[path_follower_node]" as Follower #BBDEFB
 }
 
-' --- データフロー ---
+' --- Launcher & Analysis Domain ---
+package "Launcher & Analysis Domain" #FFF3E0 {
+  component "Launcher Speed Calculator\n[launcher_speed_calculator]" as LauncherCalc #FFE0B2
+  component "Trajectory Analyzer\n[cloth_trajectory_analyzer]" as ClothAnalyzer #FFE0B2
+}
 
-' 1. センサ & 自己位置
-Livox --> Localizer : 点群・IMU
-Localizer --> Planner : 自己位置 TF (map -> base_link)
-Localizer --> Perception : 動的点群データ
-Perception --> Follower : 移動バケツ座標 TF (map -> bucket_bottom)
+' --- Communication Domain ---
+package "Communication Domain" #F5F5F5 {
+  component "UDP Bridge Node\n[udp_node]" as UDP #E0E0E0
+}
 
-' 2. メイン基板 (UDP) ↔ ナビゲーション
-UDP --> TargetMgr : /robot/navigation_command\n/robot/target_id
-UDP --> Follower : /robot/navigation_command\n/robot/target_id
-TargetMgr --> Planner : /goal_pose (PoseStamped)
-CostmapGen --> Planner : /costmap (OccupancyGrid)
+' --- Connections: Sensor & Localization ---
+Livox -[#388E3C]-> Localizer : Point Cloud & IMU\n(/livox/lidar, /livox/imu)
+Localizer -[#388E3C]-> Planner : Robot Pose TF\n(map -> base_link)
+Localizer -[#388E3C]-> Perception : Dynamic Point Cloud\n(/dynamic_cloud)
+Perception -[#388E3C]-> Follower : Target Bucket Pose TF\n(map -> bucket_bottom)
 
-Planner --> Follower : /planned_path (Path)
-Follower --> UDP : /robot/operation/cmd_vel (Twist)\n/robot/operation/navigation_status (UInt8)
+' --- Connections: Master MCU (UDP) & Navigation ---
+UDP -[#E64A19]-> TargetMgr : Navigation Command\n(/robot/navigation_command, /robot/target_id)
+UDP -[#E64A19]-> Follower : Navigation Command\n(/robot/navigation_command, /robot/target_id)
+TargetMgr -[#1976D2]-> Planner : Goal Pose\n(/goal_pose: PoseStamped)
+CostmapGen -[#1976D2]-> Planner : Costmap\n(/costmap: OccupancyGrid)
 
-' 3. 射出制御 & 雑巾解析
-RealSense --> ClothAnalyzer : 雑巾の追跡軌道
-UDP --> ClothAnalyzer : ベルト直動の速度・電圧電流情報
-LauncherCalc --> UDP : ベルト直動の速度指令値
+Planner -[#1976D2]-> Follower : Planned Path\n(/planned_path: Path)
+Follower -[#E64A19]-> UDP : Velocity Command & Status\n(/robot/operation/cmd_vel: Twist)\n(/robot/operation/navigation_status: UInt8)
 
-' ノート
+' --- Connections: Launcher & Analysis ---
+RealSense -[#7B1FA2]-> ClothAnalyzer : Tracked Cloth Trajectory
+UDP -[#7B1FA2]-> ClothAnalyzer : Launcher Telemetry\n(Linear Velocity, Voltage, Current)
+LauncherCalc -[#E64A19]-> UDP : Launcher Velocity Command
+
+' --- Technical Notes ---
 note top of LauncherCalc
-  TFで base_link から相手ロボット/バケツへの
-  相対座標を取得し、ベルト直動の指令値を計算
+  <b>Launcher Calculation:</b>
+  Calculates linear belt drive velocity command
+  based on relative TF between robot (base_link)
+  and target bucket / opponent robot.
 end note
 
 note top of RealSense
-  RealSenseに直接接続し
-  射出された雑巾をカメラ追跡するノード
+  <b>Vision Tracking:</b>
+  Directly captures high-speed RGB-D stream
+  to track ejected cloth flight path in 3D space.
 end note
 
 note top of ClothAnalyzer
-  射出時の状態・指令値・フィードバック・
-  カメラ軌道を揃えて記録・解析するノード
+  <b>Performance Logging:</b>
+  Synchronizes and analyzes launch states,
+  velocity commands, driver telemetry,
+  and optical flight trajectories.
 end note
 
 @enduml
