@@ -1,116 +1,101 @@
-@startuml PowerWiringDiagram_v6_Signal
+@startuml logic wireing diagram
 
-title CAN/信号系統図 v6 (CAN-BUSごとに整理)
+title Signal & Communication Topology Diagram (CAN / Ethernet / EMS)
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FFFFFF
-skinparam component {
-  BackgroundColor #F5F7FA
-  BorderColor #444444
-  FontSize 13
-}
-skinparam package {
-  BackgroundColor #FAFAFA
-  BorderColor #888888
-  FontSize 14
-  FontStyle bold
-}
-skinparam ArrowFontSize 11
+skinparam defaultTextAlignment center
 skinparam shadowing false
 scale max 4960*3508
 
+skinparam component {
+  BackgroundColor #F8F9FA
+  BorderColor #444444
+  FontSize 12
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #90A4AE
+  FontSize 13
+  FontStyle bold
+}
+
+skinparam ArrowFontSize 11
+
 legend top left
-  |<back:#1E88E5>   </back> CAN1 / CAN2 / CAN3 バス + 5V信号 |
-  |<back:#757575>   </back> ON/OFF デジタル信号 (EMS系) |
-  |<back:#212121>   </back> Ethernet 信号 (電源含まず) |
-  電源系統は別図「電源系統図」を参照
+  |<back:#1E88E5>   </back> CAN Bus (CAN1 / CAN2 / CAN3) + 5V |
+  |<back:#212121>   </back> Ethernet Network |
+  |<back:#E53935>   </back> Emergency Stop (EMS) Digital Signal |
+  Refer to Power Distribution Diagram for DC power feeds
 endlegend
 
-package "メイン制御ボード" #E3F2FD {
-  component Mainboard
+' --- Master Controller Layer (Top Authority) ---
+package "Master Control System" #E3F2FD {
+  component "**GN10 Mainboard**\n[Master Authority / Core Real-Time Controller]" as Mainboard #BBDEFB
 }
 
-package "CAN1バス" #FFF9C4 {
-  component "TrinityDeviceController\n24V" as Trinity24V
-  component "HTMD v2.2c" as HTMD
-  component "KNI-Servo" as KNI_Servo
-  component "KNI-Servo-LED" as KNI_LED
+' --- High-Level Compute & Sensors ---
+package "Host Compute & Vision (Ethernet Network)" #EDE7F6 {
+  component "Jetson\n(Host Computer)" as Jetson #D1C4E9
+  component "L2 Ethernet Switch" as L2SW
+  component "MID-360S\n(3D LiDAR)" as MID360S
+  component "Lakibeam 1\n(2D LiDAR)" as Lakibeam1
 }
 
-Mainboard .[#1E88E5].> Trinity24V : CAN1
-Trinity24V .[#1E88E5].> HTMD : CAN1
-HTMD .[#1E88E5].> KNI_Servo : CAN1
-KNI_Servo .[#1E88E5].> KNI_LED : CAN1
-
-package "CAN2バス" #FFE0B2 {
-  component "PowerManagementBoard" as PMB
-  component Jetson
-  component "VoltageCovertorBoard" as VConv
-  component "RemoteEMSBoard\n(CAN+5Vより受電)" as RemoteEMSBoard
+' --- Distributed CAN Subsystems ---
+package "Actuator & IO Domain (CAN1)" #FFF9C4 {
+  component "Trinity Device Controller\n(24V Driver)" as Trinity24V
+  component "HTMD v2.2c\n(Motor Driver)" as HTMD
+  component "KNI-Servo\n(Servo / LED)" as KNI_Servo
 }
 
-Mainboard .[#1E88E5].> Jetson : CAN2
-Jetson .[#1E88E5].> VConv : CAN2
-VConv .[#1E88E5].> PMB : CAN2
-PMB .[#1E88E5].> RemoteEMSBoard : CAN2+5V(電源兼用)
-
-package "CAN3バス" #E1BEE7 {
-  component "C620 ESCHub" as C620Hub
-  component "C610 ESCHub" as C610Hub
-  component "VESC ESCHub" as VESCHub
-}
-
-Mainboard .[#1E88E5].> C620Hub : CAN3
-C620Hub .[#1E88E5].> C610Hub : CAN3
-C610Hub .[#1E88E5].> VESCHub : CAN3
-
-package "非常停止系統 (EMS)" #FFF3E0 {
-  component "EMS SW" as EMS_SW
+package "Power & Safety Domain (CAN2 / EMS)" #FFE0B2 {
+  component "Power Management Board\n(PMB)" as PMB
+  component "Voltage Converter Board" as VConv
+  component "Remote EMS Board\n(Powered via CAN+5V)" as RemoteEMSBoard
+  component "Emergency Stop SW\n(Local EMS)" as EMS_SW
   component "Remote EMS SW" as RemoteEMS_SW
 }
 
-EMS_SW .[#757575].> PMB : ON/OFF Signal
-RemoteEMS_SW .[#757575].> RemoteEMSBoard : ON/OFF Signal
-RemoteEMSBoard .[#757575].> PMB : ON/OFF Signal
+package "Motor ESC Domain (CAN3 / Drivetrain)" #F3E5F5 {
+  component "C620 ESC Hub" as C620Hub
+  component "C610 ESC Hub" as C610Hub
+  component "VESC Hub" as VESCHub
 
-package "Ethernet周辺機器" {
-  component "MID-360S\n(LiDAR)" as MID360S
-  component "L2スイッチ" as L2SW
+  component "C620 (Front / Left / Right)" as C620_Group
+  component "C610 x4" as C610
+  component "VESC (Launcher)" as VESC
 }
 
-L2SW .[#212121].> Jetson : Ethernet
-L2SW .[#212121].> Mainboard : Ethernet
-L2SW .[#212121].> MID360S : Ethernet
+' --- Ethernet Topology ---
+Mainboard .[#212121].> L2SW : Ethernet
+Jetson .[#212121].> L2SW : Ethernet
+MID360S .[#212121].> L2SW : Ethernet
+Lakibeam1 .[#212121].> L2SW : Ethernet
 
-package "足回り (ホイール)" {
-  component VESC
-  component "C620 (Front)" as C620_F
-  component "C620 (Left)" as C620_L
-  component "C620 (Right)" as C620_R
-}
+' --- Master Control Routing: CAN1 ---
+Mainboard -[#1E88E5]-> Trinity24V : CAN1 Bus
+Trinity24V -[#1E88E5]-> HTMD : CAN1
+HTMD -[#1E88E5]-> KNI_Servo : CAN1
 
-C620Hub .[#1E88E5].> C620_F : CAN(絶縁後)
-C620Hub .[#1E88E5].> C620_L : CAN(絶縁後)
-C620Hub .[#1E88E5].> C620_R : CAN(絶縁後)
-VESCHub .[#1E88E5].> VESC : CAN(絶縁後)
+' --- Master Control Routing: CAN2 ---
+Mainboard -[#1E88E5]-> VConv : CAN2
+VConv -[#1E88E5]-> PMB : CAN2
+PMB -[#1E88E5]-> RemoteEMSBoard : CAN2 + 5V Power
 
-package "C610駆動アクチュエータ" {
-  component "BucketArmHoldC610" as BAH_C610
-  component "LoadingShiftC610" as LS_C610
-  component "LoadingRotateC610" as LR_C610
-  component "DeskArmC610" as DA_C610
-}
+' --- Master Control Routing: CAN3 ---
+Mainboard -[#1E88E5]-> C620Hub : CAN3 Bus
+C620Hub -[#1E88E5]-> C610Hub : CAN3
+C610Hub -[#1E88E5]-> VESCHub : CAN3
 
-C610Hub .[#1E88E5].> BAH_C610 : CAN(絶縁後)
-C610Hub .[#1E88E5].> LS_C610 : CAN(絶縁後)
-C610Hub .[#1E88E5].> LR_C610 : CAN(絶縁後)
-C610Hub .[#1E88E5].> DA_C610 : CAN(絶縁後)
+' --- Isolated Sub-tier ESC Control ---
+C620Hub .[#1E88E5].> C620_Group : Isolated CAN
+C610Hub .[#1E88E5].> C610 : Isolated CAN
+VESCHub .[#1E88E5].> VESC : Isolated CAN
 
-package "空圧系統" {
-  component "AirRegulatorControlBoard" as ARCB
-  component "AirRegulator" as AirReg
-}
-
-ARCB .[#1E88E5].> AirReg : Signal
+' --- Safety / EMS Signals ---
+EMS_SW -[#E53935]-> PMB : Digital Stop
+RemoteEMS_SW -[#E53935]-> RemoteEMSBoard : Digital Stop
 
 @enduml

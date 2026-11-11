@@ -1,231 +1,195 @@
-@startuml PowerWiringDiagram_v6_Combined
+@startuml wireing diagram
 
-title 電源・信号 統合図 v6 (CAN-BUSごとに整理)
+title Integrated System Diagram (Power, CAN, Ethernet & EMS)
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FFFFFF
-skinparam component {
-  BackgroundColor #F5F7FA
-  BorderColor #444444
-  FontSize 12
-}
-skinparam package {
-  BackgroundColor #FAFAFA
-  BorderColor #888888
-  FontSize 13
-  FontStyle bold
-}
-skinparam ArrowFontSize 10
+skinparam defaultTextAlignment center
 skinparam shadowing false
 scale max 4960*3508
 
+skinparam component {
+  BackgroundColor #F8F9FA
+  BorderColor #444444
+  FontSize 12
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #90A4AE
+  FontSize 13
+  FontStyle bold
+}
+
+skinparam ArrowFontSize 10
+
 legend top left
-  |<back:#E53935>   </back> 実線 | 5S駆動 (18.5〜21V) |
-  |<back:#FB8C00>   </back> 実線 | 4S直系 (14.8〜16.8V) |
-  |<back:#FDD835>   </back> 実線 | 3S直系 (11.1〜12.6V) |
-  |<back:#6D4C41>   </back> 実線 | 外部AC/DC入力 (19V) |
-  |<back:#00897B>   </back> 実線 | LPMB出力 無停電統合バス (11.1〜16.8V可変) |
-  |<back:#43A047>   </back> 実線 | 24V (TrinityDeviceController出力) |
-  |<back:#C0CA33>   </back> 実線 | 12V (VoltageCovertorBoard出力) |
-  |<back:#8E24AA>   </back> 実線 | 5V (KNI-Servo / KNI-Servo-LED出力) |
-  |<back:#D81B60>   </back> 実線 | 可変電圧アナログ信号 (ARCB→ToggleSW→AirReg) |
-  |<back:#B0BEC5>   </back> 実線 | 空気圧配管 (非電気) |
-  |<back:#1E88E5>   </back> 点線 | CAN1 / CAN2 / CAN3 バス + 5V信号 |
-  |<back:#757575>   </back> 点線 | ON/OFF デジタル信号 (EMS系) |
-  |<back:#212121>   </back> 点線 | Ethernet 信号 (電源含まず) |
+  <b>== [Power Lines (Solid)] ==</b>
+  |<back:#E53935>   </back> 5S Drive Power (18.5–21V) |
+  |<back:#FB8C00>   </back> 5S Logic Power A (18.5–21V) |
+  |<back:#FDD835>   </back> 5S Logic Power B (18.5–21V) |
+  |<back:#6D4C41>   </back> External AC/DC Input (19V) |
+  |<back:#00897B>   </back> LPMB UPS Bus Output (11.1–16.8V Variable) |
+  |<back:#43A047>   </back> 24V Output (Trinity Device Controller) |
+  |<back:#8E24AA>   </back> 5V Power (USB / Auxiliary) |
+  <b>== [Signal & Communication (Dotted / Dashed)] ==</b>
+  |<back:#1E88E5>   </back> CAN Bus (CAN1 / CAN2 / CAN3) + 5V |
+  |<back:#212121>   </back> Ethernet Network |
+  |<back:#D81B60>   </back> Emergency Stop (EMS) Digital Signal |
 endlegend
 
-package "バッテリー" {
-  component "Lipo 5S" as Lipo5S
-  component "Lipo 4S" as Lipo4S
-  component "Lipo 3S" as Lipo3S
-  component "外部AC/DCコンバータ\n19V" as External_DC
+' ==========================================
+' 1. Master Controller Layer (Top Authority)
+' ==========================================
+package "Master Control System" #E3F2FD {
+  component "**GN10 Mainboard**\n[Master Authority / Core Real-Time Controller]" as Mainboard #BBDEFB
 }
 
-package "駆動系 電源ライン (5S)" #EAF3FF {
-  component "Fuse 30A" as Fuse30A
-  component "VoltageMeter 5S" as VMeter5S
-  component "PowerDistributionBoard\n(大容量C搭載)" as PDB
+' ==========================================
+' 2. Power Generation & Distribution Layers
+' ==========================================
+package "Power Sources" {
+  component "LiPo 5S (Drive)" as Lipo5S
+  component "LiPo 5S (Logic A)" as Lipo5S1
+  component "LiPo 5S (Logic B)" as Lipo5S2
+  component "External AC/DC\n19V" as External_DC
 }
 
+package "Drive Power Stage" #EAF3FF {
+  component "Fuse (30A)" as Fuse30A
+  component "Voltage Meter (5S)" as VMeter5S
+  component "Power Management Board\n(PMB)" as PMB #FFE0B2
+  component "Power Distribution Board\n(PDB / High Capacitance)" as PDB
+}
+
+package "Logic Power Stage" #F0F6E7 {
+  component "Fuse (10A)" as Fuse10A1
+  component "Fuse (10A)" as Fuse10A2
+  component "Logic Power Management Board\n(LPMB / UPS)" as LPMB
+}
+
+' Power Flow: Drive
 Lipo5S -[#E53935]-> Fuse30A
 Fuse30A -[#E53935]-> VMeter5S
+VMeter5S -[#E53935]-> PMB
+PMB -[#E53935]-> PDB
 
-package "制御系 電源ライン (4S/3S/外部)" #f0f6e7 {
-  component "Fuse 10A (4S)" as Fuse10A_4S
-  component "Fuse 10A (3S)" as Fuse10A_3S
-  component "LogicPowerManagementBoard\n(無停電)" as LPMB
-}
-
-Lipo4S -[#FB8C00]-> Fuse10A_4S
-Fuse10A_4S -[#FB8C00]-> LPMB
-Lipo3S -[#FDD835]-> Fuse10A_3S
-Fuse10A_3S -[#FDD835]-> LPMB
+' Power Flow: Logic
+Lipo5S1 -[#FB8C00]-> Fuse10A1
+Fuse10A1 -[#FB8C00]-> LPMB
+Lipo5S2 -[#FDD835]-> Fuse10A2
+Fuse10A2 -[#FDD835]-> LPMB
 External_DC -[#6D4C41]-> LPMB
 
-package "メイン制御ボード" #E3F2FD {
-  component Mainboard
+' ==========================================
+' 3. High-Level Compute & Network
+' ==========================================
+package "Host Compute & Vision" #EDE7F6 {
+  component "Jetson\n(Host Computer)" as Jetson #D1C4E9
+  component "L2 Ethernet Switch" as L2SW
+  component "MID-360S\n(3D LiDAR)" as MID360S
+  component "Lakibeam 1\n(2D LiDAR)" as Lakibeam1
 }
 
-package "CAN1バス" #FFF9C4 {
-  component "TrinityDeviceController\n24V" as Trinity24V
-  component "HTMD v2.2c" as HTMD
-  component "KNI-Servo" as KNI_Servo
-  component "KNI-Servo-LED" as KNI_LED
+' Power Flow: LPMB to Compute & Sensors
+LPMB -[#00897B]-> Mainboard : UPS Bus
+LPMB -[#00897B]-> Jetson : UPS Bus
+LPMB -[#00897B]-> MID360S : UPS Bus
+LPMB -[#00897B]-> Lakibeam1 : UPS Bus
+Jetson -[#8E24AA]-> L2SW : USB 5V
+
+' Ethernet Topology
+Mainboard .[#212121].> L2SW : Ethernet
+Jetson .[#212121].> L2SW : Ethernet
+MID360S .[#212121].> L2SW : Ethernet
+Lakibeam1 .[#212121].> L2SW : Ethernet
+
+' ==========================================
+' 4. Safety & Power Domain (CAN2 / EMS)
+' ==========================================
+package "Safety & Monitoring Domain (CAN2 / EMS)" #FFF3E0 {
+  component "Voltage Converter Board" as VConv
+  component "Remote EMS Board\n(Powered via CAN+5V)" as RemoteEMSBoard
+  component "Emergency Stop SW\n(Local EMS)" as EMS_SW
+  component "Remote EMS SW" as RemoteEMS_SW
 }
 
+' CAN2 Chain
+Mainboard .[#1E88E5].> VConv : CAN2
+VConv .[#1E88E5].> PMB : CAN2
+PMB .[#1E88E5].> RemoteEMSBoard : CAN2 + 5V
+
+' EMS Safety Signals
+EMS_SW .[#D81B60].> PMB : Digital Stop
+RemoteEMS_SW .[#D81B60].> RemoteEMSBoard : Digital Stop
+
+' ==========================================
+' 5. Actuator, IO & Pneumatics (CAN1)
+' ==========================================
+package "Actuator & Pneumatic Domain (CAN1)" #FFF9C4 {
+  component "Trinity Device Controller\n(24V Driver)" as Trinity24V
+  component "HTMD v2.2c\n(Motor Driver)" as HTMD
+  component "RS385\n(DC Motor)" as RS385
+  component "KNI-Servo\n(Servo / LED)" as KNI_Servo
+  component "Status LED" as LED
+  component "Air Regulator" as AirReg
+  component "Air Launcher 1" as Air_Desk1
+  component "Air Launcher 2" as Air_Desk2
+}
+
+' Power Feeds from PDB
+PDB -[#E53935]-> Trinity24V : 5S Drive
+PDB -[#E53935]-> HTMD : 5S Drive
+PDB -[#E53935]-> KNI_Servo : 5S Drive
+
+' Actuator Power Lines
+HTMD -[#E53935]-> RS385
+KNI_Servo -[#8E24AA]-> LED : 5V Output
+Trinity24V -[#43A047]-> Air_Desk1 : Solenoid (24V)
+Trinity24V -[#43A047]-> Air_Desk2 : Solenoid (24V)
+Trinity24V -[#43A047]-> AirReg : 24V
+
+' CAN1 Bus Routing
 Mainboard .[#1E88E5].> Trinity24V : CAN1
 Trinity24V .[#1E88E5].> HTMD : CAN1
 HTMD .[#1E88E5].> KNI_Servo : CAN1
-KNI_Servo .[#1E88E5].> KNI_LED : CAN1
 
-package "CAN2バス" #FFE0B2 {
-  component Jetson
-  component "VoltageCovertorBoard" as VConv
-  component "PowerManagementBoard" as PMB
-  component "RemoteEMSBoard\n(CAN+5Vより受電)" as RemoteEMSBoard
+' ==========================================
+' 6. Drivetrain & Launcher ESCs (CAN3)
+' ==========================================
+package "Drivetrain & Mechanism ESC Domain (CAN3)" #F3E5F5 {
+  component "C620 ESC Hub" as C620Hub
+  component "C610 ESC Hub" as C610Hub
+  component "VESC Hub" as VESCHub
+
+  component "C620 (Front/Left/Right)" as C620_Group
+  component "M3508 Wheels (x3)" as Wheel_Group
+  component "C610 (x4)" as C610
+  component "M2006 (x4)" as M2006
+  component "Capacitor Array" as C_Arr2
+  component "VESC" as VESC
+  component "BLDC-NEO" as BLDC_NEO
 }
 
-Mainboard .[#1E88E5].> Jetson : CAN2
-Jetson .[#1E88E5].> VConv : CAN2
-VConv .[#1E88E5].> PMB : CAN2
-PMB .[#1E88E5].> RemoteEMSBoard : CAN2+5V(電源兼用)
-
-VMeter5S -[#E53935]-> PMB
-PMB -[#E53935]-> PDB
-LPMB -[#00897B]-> Jetson
-LPMB -[#00897B]-> VConv
-
-package "CAN3バス" #E1BEE7 {
-  component "C620 ESCHub" as C620Hub
-  component "C610 ESCHub" as C610Hub
-  component "VESC ESCHub" as VESCHub
-}
-
+' CAN3 Master Daisy-Chain
 Mainboard .[#1E88E5].> C620Hub : CAN3
 C620Hub .[#1E88E5].> C610Hub : CAN3
 C610Hub .[#1E88E5].> VESCHub : CAN3
 
-PDB -[#E53935]-> C620Hub
-PDB -[#E53935]-> C610Hub
-PDB -[#E53935]-> VESCHub
+' Isolated Sub-tier CAN
+C620Hub .[#1E88E5].> C620_Group : Isolated CAN
+C610Hub .[#1E88E5].> C610 : Isolated CAN
+VESCHub .[#1E88E5].> VESC : Isolated CAN
 
-package "非常停止系統 (EMS)" #FFF3E0 {
-  component "EMS SW" as EMS_SW
-  component "Remote EMS SW" as RemoteEMS_SW
-}
+' Power & Motor Drive
+PDB -[#E53935]-> C620_Group : 5S Drive
+C620_Group -[#E53935]-> Wheel_Group
 
-EMS_SW .[#757575].> PMB : ON/OFF Signal
-RemoteEMS_SW .[#757575].> RemoteEMSBoard : ON/OFF Signal
-RemoteEMSBoard .[#757575].> PMB : ON/OFF Signal
+PDB -[#E53935]-> C610 : 5S Drive
+C610 -[#E53935]-> M2006
 
-package "Ethernet周辺機器" {
-  component "MID-360S\n(LiDAR)" as MID360S
-  component "L2スイッチ" as L2SW
-}
-
-VConv -[#C0CA33]-> MID360S : 12V
-VConv -[#8E24AA]-> L2SW : 5V
-L2SW .[#212121].> Jetson : Ethernet
-L2SW .[#212121].> Mainboard : Ethernet
-L2SW .[#212121].> MID360S : Ethernet
-
-package "足回り (ホイール)" {
-  component "XT60→XT30\n(Front)" as XT_F
-  component "XT60→XT30\n(Left)" as XT_L
-  component "XT60→XT30\n(Right)" as XT_R
-  component "C620 (Front)" as C620_F
-  component "C620 (Left)" as C620_L
-  component "C620 (Right)" as C620_R
-  component "ホイール M3508\n(Front)" as Wheel_F
-  component "ホイール M3508\n(Left)" as Wheel_L
-  component "ホイール M3508\n(Right)" as Wheel_R
-}
-
-PDB -[#E53935]-> XT_F
-XT_F -[#E53935]-> C620_F
-C620_F -[#E53935]-> Wheel_F
-PDB -[#E53935]-> XT_L
-XT_L -[#E53935]-> C620_L
-C620_L -[#E53935]-> Wheel_L
-PDB -[#E53935]-> XT_R
-XT_R -[#E53935]-> C620_R
-C620_R -[#E53935]-> Wheel_R
-
-C620Hub .[#1E88E5].> C620_F : CAN(絶縁後)
-C620Hub .[#1E88E5].> C620_L : CAN(絶縁後)
-C620Hub .[#1E88E5].> C620_R : CAN(絶縁後)
-
-package "ベルト直動" {
-  component VESC
-  component "BLDC-NEO" as BLDC_NEO
-}
-
-PDB -[#E53935]-> VESC
+PDB -[#E53935]-> C_Arr2 : 5S Drive
+C_Arr2 -[#E53935]-> VESC
 VESC -[#E53935]-> BLDC_NEO
-VESCHub .[#1E88E5].> VESC : CAN(絶縁後)
-
-package "バケツアーム系" {
-  component "BucketArmHoldC610" as BAH_C610
-  component "BucketArmHold M2006" as BAH_M2006
-  component "BucketArmHight\nMS-385PH" as BAHeight
-}
-
-PDB -[#E53935]-> BAH_C610
-BAH_C610 -[#E53935]-> BAH_M2006
-HTMD -[#E53935]-> BAHeight
-C610Hub .[#1E88E5].> BAH_C610 : CAN(絶縁後)
-
-package "装填系" {
-  component "LoadingShiftC610" as LS_C610
-  component "LoadingShift M2006" as LS_M2006
-  component "LoadingRotateC610" as LR_C610
-  component "LoadingRotate M2006" as LR_M2006
-}
-
-PDB -[#E53935]-> LS_C610
-LS_C610 -[#E53935]-> LS_M2006
-PDB -[#E53935]-> LR_C610
-LR_C610 -[#E53935]-> LR_M2006
-C610Hub .[#1E88E5].> LS_C610 : CAN(絶縁後)
-C610Hub .[#1E88E5].> LR_C610 : CAN(絶縁後)
-
-package "机用アーム系" {
-  component "DeskArmC610" as DA_C610
-  component "DeskArmHookPos M2006" as DA_M2006
-  component "DeskArmHold MG996R" as DA_Servo
-  component "LED\nBeltVel" as LED_Belt
-  component "LED\nAirLauncherSelect" as LED_AirSel
-  component "LED\nRobotState" as LED_State
-  component "LED\nTargetRollAngle" as LED_Roll
-}
-
-PDB -[#E53935]-> DA_C610
-DA_C610 -[#E53935]-> DA_M2006
-KNI_Servo -[#8E24AA]-> DA_Servo
-KNI_LED -[#8E24AA]-> LED_Belt
-KNI_LED -[#8E24AA]-> LED_AirSel
-KNI_LED -[#8E24AA]-> LED_State
-KNI_LED -[#8E24AA]-> LED_Roll
-C610Hub .[#1E88E5].> DA_C610 : CAN(絶縁後)
-
-package "空圧系統" #E8F5E9 {
-  component ToggleSW
-  component "AirRegulatorControlBoard" as ARCB
-  component "AirRegulator" as AirReg
-  component "AirLauncher\n(旗)" as Air_Flag
-  component "AirLauncher\n(机1)" as Air_Desk1
-  component "AirLauncher\n(机2)" as Air_Desk2
-}
-
-PDB -[#E53935]-> Trinity24V
-Trinity24V -[#43A047]-> Air_Flag : 電磁弁
-Trinity24V -[#43A047]-> Air_Desk1 : 電磁弁
-Trinity24V -[#43A047]-> Air_Desk2 : 電磁弁
-Trinity24V -[#43A047]-> ARCB : 24V
-ARCB -[#D81B60]-> ToggleSW : 電圧可変信号
-ToggleSW -[#D81B60]-> AirReg : 電圧可変信号
-AirReg -[#B0BEC5]-> Air_Flag : 空気圧調整
-ARCB .[#1E88E5].> AirReg : Signal
 
 @enduml
