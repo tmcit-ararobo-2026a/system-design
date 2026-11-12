@@ -63,8 +63,8 @@ package "Drive Power Stage" #EAF3FF {
 }
 
 package "Logic Power Stage" #F0F6E7 {
-  component "Fuse (10A)" as Fuse10A1
-  component "Fuse (10A)" as Fuse10A2
+  component "Fuse (5A)" as Fuse5A1
+  component "Fuse (5A)" as Fuse5A2
   component "Logic Power Management Board\n(LPMB / UPS)" as LPMB
 }
 
@@ -75,10 +75,10 @@ VMeter5S -[#E53935]-> PMB
 PMB -[#E53935]-> PDB
 
 ' Power Flow: Logic
-Lipo5S1 -[#FB8C00]-> Fuse10A1
-Fuse10A1 -[#FB8C00]-> LPMB
-Lipo5S2 -[#FDD835]-> Fuse10A2
-Fuse10A2 -[#FDD835]-> LPMB
+Lipo5S1 -[#FB8C00]-> Fuse5A1
+Fuse5A1 -[#FB8C00]-> LPMB
+Lipo5S2 -[#FDD835]-> Fuse5A2
+Fuse5A2 -[#FDD835]-> LPMB
 External_DC -[#6D4C41]-> LPMB
 
 ' ==========================================
